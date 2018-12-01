@@ -10,7 +10,6 @@ def get_input():
 
 def main():
     frequencies = get_input()
-    print(frequencies)
     print(solve(frequencies))
 
 if __name__ == '__main__':
