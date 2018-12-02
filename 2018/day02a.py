@@ -22,7 +22,7 @@ def solve(box_ids):
     return two_count * three_count
 
 def get_input():
-    return sys.stdin.readlines()
+    return [line.strip() for line in sys.stdin.readlines()]
 
 def main():
     box_ids = get_input()
