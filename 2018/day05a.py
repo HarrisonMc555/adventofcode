@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 
-def safe_value(node):
-    if node is not None:
-        return node.value
-    return None
-
 class Node:
     def __init__(self, value, lst, next_node=None, prev_node=None):
         self.value = value
