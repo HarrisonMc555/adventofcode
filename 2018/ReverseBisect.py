@@ -1,6 +1,6 @@
+"""Reversed bisection algorithms."""
 #pylint: disable=invalid-name
 
-"""Reversed bisection algorithms."""
 
 def reverse_insort_right(a, x, lo=0, hi=None):
     """Insert item x in list a, and keep it reverse sorted assuming a is reverse
