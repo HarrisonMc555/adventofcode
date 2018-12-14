@@ -1,26 +1,46 @@
 #!/usr/bin/env python3
 #pylint: disable=invalid-name
 
-MIN_SIZE, MAX_SIZE = 1, 300
-MIN_X, MAX_X = MIN_SIZE, MAX_SIZE
-MIN_Y, MAX_Y = MIN_SIZE, MAX_SIZE
-def solve(serial_num):
-    grid = create_grid(serial_num)
-    topleft, size, _power = max(range(MIN_SIZE, MAX_SIZE + 1),
-                                key=lambda size: best_subgrid(grid, size))
-    return (*topleft, size)
+import math
 
-def best_subgrid(grid, size):
-    print(size)
-    toplefts = find_subgrid_toplefts(grid, size)
-    best_topleft = max(toplefts,
-                       key=lambda topleft: subgrid_power(grid, size, *topleft))
-    return best_topleft, size, subgrid_power(grid, size, *best_topleft)
+MIN_SIZE, MAX_SIZE = 1, 300
+def solve(serial_num):
+    orig_grid = create_grid(serial_num)
+    cur_grid = orig_grid
+    best_answer, best_power = None, -math.inf
+    for size in range(MIN_SIZE, MAX_SIZE + 1):
+        cur_grid = create_next_grid(cur_grid)
+        cur_topleft, cur_power = best_subgrid(cur_grid)
+        if cur_power > best_power:
+            best_answer = cur_topleft, size
+            best_power = cur_power
+    return best_answer
+
+def create_next_grid(grid, orig_grid):
+    next_grid = []
+    for i, row in grid[:-1]:
+        next_row = []
+        next_grid.append(next_row)
+        for j, power in row[:-1]:
+            extra_row = get_next_row(orig_grid, i, j)
+            extra_col = get_next_col(orig_grid, i, j)
+            extra_corner = get_next_corner(orig_grid, i, j)
+            next_power = power + sum(extra_row) + sum(extra_col) + extra_corner
+            next_row.append(next_power)
+    return next_grid
+
+def best_subgrid(grid):
+    return = max(((i, j, power) for i, row in grid for j, power in row),
+                 key=lambda ijp: ijp[2])
+
+def access_grid(grid, ij):
+    i, j = ij
+    return grid[i][j]
 
 def create_grid(serial_num):
     return [[cell_power(row, col, serial_num)
-             for col in range(MIN_X, MAX_X + 1)]
-            for row in range(MIN_Y, MAX_Y + 1)]
+             for col in range(MIN_SIZE, MAX_SIZE + 1)]
+            for row in range(MIN_SIZE, MAX_SIZE + 1)]
 
 def cell_power(row, col, serial_num):
     x, y = col, row
@@ -31,21 +51,6 @@ def cell_power(row, col, serial_num):
     power_level = get_hundreds(power_level)
     power_level -= 5
     return power_level
-
-def subgrid_power(grid, size, row, col):
-    return total_power(get_subgrid(grid, size, row, col))
-
-def get_subgrid(grid, size, row, col):
-    return [[grid[col + dcol - 1][row + drow - 1]
-             for dcol in range(size)]
-            for drow in range(size)]
-
-def total_power(subgrid):
-    return sum(sum(row) for row in subgrid)
-
-def find_subgrid_toplefts(grid, size):
-    return [(row, col) for row in range(len(grid) - size + 1)
-            for col in range(len(grid[row]) - size + 1)]
 
 def get_hundreds(num):
     return (num % 1000) // 100
