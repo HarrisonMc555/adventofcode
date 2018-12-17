@@ -38,17 +38,38 @@ class Unit:
         self.grid = grid
         self.hp = Unit.STARTING_HP
 
+    def get_position(self):
+        return self.row, self.col
+
+    def tick(self, units):
+        pass
+
+    def get_targets(self, units):
+        return {unit for unit in units if unit.team != self.team}
+
+    def select_target(self, targets):
+        pass
+
 ################################################################################
 # Solution
 ################################################################################
 
-def solve(grid):
-    num_rounds, units = run_combat(grid)
+def solve(units):
+    num_rounds = run_combat(units)
     total_hp = sum(unit.hp for unit in units)
     return num_rounds * total_hp
 
-def run_combat(grid):
-    return 0, []
+def run_combat(units):
+    num_rounds = 0
+    game_done = False
+    while not game_done:
+        for unit in sorted(units, key=lambda unit: unit.get_position()):
+            game_done = unit.tick()
+            if game_done:
+                break
+        else:
+            num_rounds += 1
+    return num_rounds
 
 ################################################################################
 # Input
@@ -66,7 +87,7 @@ def build_grid(char_grid):
         for j, char in enumerate(char_row):
             row.append(parse_char(char, i, j, grid, units))
         grid.append(row)
-    return grid
+    return units
 
 def parse_char(char, row, col, grid, units):
     if char == '#':
@@ -88,8 +109,8 @@ def parse_char(char, row, col, grid, units):
 ################################################################################
 
 def main():
-    pattern = get_input()
-    print(solve(pattern))
+    units = get_input()
+    print(solve(units))
 
 if __name__ == '__main__':
     main()
