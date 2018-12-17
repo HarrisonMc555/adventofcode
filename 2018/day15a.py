@@ -4,6 +4,10 @@
 import sys
 from enum import Enum, auto
 
+################################################################################
+# Classes
+################################################################################
+
 class Team(Enum):
     ELF = auto()
     GOBLIN = auto()
@@ -34,8 +38,21 @@ class Unit:
         self.grid = grid
         self.hp = Unit.STARTING_HP
 
+################################################################################
+# Solution
+################################################################################
+
 def solve(grid):
-    return len(grid) + len(grid[0])
+    num_rounds, units = run_combat(grid)
+    total_hp = sum(unit.hp for unit in units)
+    return num_rounds * total_hp
+
+def run_combat(grid):
+    return 0, []
+
+################################################################################
+# Input
+################################################################################
 
 def get_input():
     char_grid = [line.strip() for line in sys.stdin.readlines()]
@@ -47,7 +64,7 @@ def build_grid(char_grid):
     for i, char_row in enumerate(char_grid):
         row = []
         for j, char in enumerate(char_row):
-            grid[-1].append(parse_char(char, i, j, grid, units))
+            row.append(parse_char(char, i, j, grid, units))
         grid.append(row)
     return grid
 
@@ -58,13 +75,17 @@ def parse_char(char, row, col, grid, units):
         return Tile(False)
     if char == 'E':
         elf = Unit(row, col, Team.ELF, grid)
-        units.append(elf)
+        units.add(elf)
         return Tile(False, elf)
     if char == 'G':
         goblin = Unit(row, col, Team.GOBLIN, grid)
-        units.append(goblin)
+        units.add(goblin)
         return Tile(False, goblin)
     raise Exception('Invalid tile char')
+
+################################################################################
+# Run
+################################################################################
 
 def main():
     pattern = get_input()
