@@ -69,6 +69,7 @@ class Tile:
 
 class Unit:
     STARTING_HP = 200
+    DEFAULT_ATTACK_POWER = 3
 
     def __init__(self, row, col, team, grid):
         self.row = row
@@ -76,6 +77,7 @@ class Unit:
         self.team = team
         self.grid = grid
         self.hp = Unit.STARTING_HP
+        self.attack_power = Unit.DEFAULT_ATTACK_POWER
 
     def __str__(self):
         return '<({}, {}), {}, {}/{}>'.format(self.row, self.col, self.team,
@@ -122,7 +124,7 @@ class Unit:
             dprint('\t', 'calling move_to')
             self.move_to(step_position)
             return True
-        print('\t', 'Already at', step_position)
+        dprint('\t', 'Already at', step_position)
         return False
 
     def get_targets(self, units):
@@ -158,11 +160,31 @@ class Unit:
         return is_adjacent_to(self.get_position(), position)
 
     def attack(self, units):
-        if not units:
-            raise Exception('Unimplemented', self)
-        if len(units) == 4444444:
-            return self
+        global DEBUG_COUNTER #pylint: disable=global-statement
+        DEBUG_COUNTER += 1
+        dprint('\n')
+        dprint('attack ({})', self)
+        adjacent_targets = self.get_adjacent_targets(units)
+        dprint('\t', 'adjacent_targets:', adjacent_targets)
+        if not adjacent_targets:
+            DEBUG_COUNTER -= 1
+            return None
+        target = sorted(adjacent_targets, key=lambda t: t.get_position())[0]
+        is_dead = target.attacked(self.attack_power)
+        if is_dead:
+            DEBUG_COUNTER -= 1
+            return target
+        DEBUG_COUNTER -= 1
         return None
+
+    def get_adjacent_targets(self, units):
+        targets = self.get_targets(units)
+        dprint('\t', 'targets:', ', '.join(str(t) for t in targets))
+        return {target for target in targets if self.is_adjacent_to(target)}
+
+    def attacked(self, attack_power):
+        self.hp -= attack_power
+        return self.hp <= 0
 
 def get_unit_valid_adjacent_positions(units):
     positions = set()
@@ -225,6 +247,8 @@ def run_combat(units):
         #     global DEBUG_COUNTER #pylint: disable=global-statement
         #     DEBUG_COUNTER += 1
         print('num_rounds:', num_rounds)
+        print('\n'.join(str(unit) for unit in units))
+        print()
         print(create_grid_string(next(iter(units)).grid))
         print()
         something_moved = False
