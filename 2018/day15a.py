@@ -78,6 +78,7 @@ class Unit:
         self.grid = grid
         self.hp = Unit.STARTING_HP
         self.attack_power = Unit.DEFAULT_ATTACK_POWER
+        self.last_target = None
 
     def __str__(self):
         return '<({}, {}), {}, {}/{}>'.format(self.row, self.col, self.team,
@@ -104,8 +105,7 @@ class Unit:
             dprint('\t', '!!! no targets found !!!')
             raise NoMoreTargetsException()
         dprint('\t', 'calling get_unit_valid_adjacent_positions')
-        if any(self.is_adjacent_to(target.get_position())
-               for target in targets):
+        if self.get_adjacent_targets(units):
             return False
         target_adjacent_positions = get_unit_valid_adjacent_positions(targets)
         dprint('\t', 'target_adjacent_positions', target_adjacent_positions)
@@ -156,31 +156,34 @@ class Unit:
     def get_valid_adjacent_positions(self):
         return get_valid_adjacent_positions(self.get_position(), self.grid)
 
-    def is_adjacent_to(self, position):
-        return is_adjacent_to(self.get_position(), position)
+    def is_adjacent_to(self, unit):
+        return is_adjacent_to(self.get_position(), unit.get_position())
 
     def attack(self, units):
         global DEBUG_COUNTER #pylint: disable=global-statement
         DEBUG_COUNTER += 1
         dprint('\n')
-        dprint('attack ({})', self)
-        adjacent_targets = self.get_adjacent_targets(units)
-        dprint('\t', 'adjacent_targets:', adjacent_targets)
-        if not adjacent_targets:
+        dprint('attack:', self)
+        target = self.get_adjacent_target(units)
+        if not target:
             DEBUG_COUNTER -= 1
             return None
-        target = sorted(adjacent_targets, key=lambda t: t.get_position())[0]
         is_dead = target.attacked(self.attack_power)
-        if is_dead:
-            DEBUG_COUNTER -= 1
-            return target
         DEBUG_COUNTER -= 1
-        return None
+        return target if is_dead else None
 
     def get_adjacent_targets(self, units):
         targets = self.get_targets(units)
         dprint('\t', 'targets:', ', '.join(str(t) for t in targets))
         return {target for target in targets if self.is_adjacent_to(target)}
+
+    def get_adjacent_target(self, units):
+        adjacent_targets = self.get_adjacent_targets(units)
+        # choose based on reading order
+        if not adjacent_targets:
+            return None
+        assert adjacent_targets
+        return sorted(adjacent_targets, key=lambda t: t.get_position())[0]
 
     def attacked(self, attack_power):
         self.hp -= attack_power
@@ -241,11 +244,8 @@ def run_combat(units):
     num_rounds = 0
     game_done = False
     nothing_changed_last_time = False
-    # while not game_done:
-    while not game_done and num_rounds < 4:
-        # if num_rounds == 1:
-        #     global DEBUG_COUNTER #pylint: disable=global-statement
-        #     DEBUG_COUNTER += 1
+    while not game_done:
+    # while not game_done and num_rounds < 4:
         print('num_rounds:', num_rounds)
         print('\n'.join(str(unit) for unit in units))
         print()
@@ -268,8 +268,6 @@ def run_combat(units):
                 game_done = True
                 break
         else:
-            # if num_rounds == 1:
-            #     DEBUG_COUNTER -= 1
             num_rounds += 1
         units.difference_update(killed_units)
         nothing_changed_last_time = not something_moved and \
