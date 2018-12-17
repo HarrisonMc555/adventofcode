@@ -18,6 +18,13 @@ class Team(Enum):
     ELF = auto()
     GOBLIN = auto()
 
+    def to_char(self):
+        if self == Team.ELF:
+            return 'E'
+        if self == Team.GOBLIN:
+            return 'G'
+        raise Exception('Invalid team')
+
 class Tile:
     def __init__(self, is_wall, occupant=None):
         self.is_wall = is_wall
@@ -47,6 +54,13 @@ class Tile:
             raise Exception('Add occupant to occupied tile')
         self.occupant = occupant
 
+    def to_char(self):
+        if self.occupant:
+            return self.occupant.team.to_char()
+        if self.is_wall:
+            return '#'
+        return '.'
+
 class Unit:
     STARTING_HP = 200
 
@@ -57,22 +71,41 @@ class Unit:
         self.grid = grid
         self.hp = Unit.STARTING_HP
 
+    def __str__(self):
+        return '<({}, {}), {}, {}/{}>'.format(self.row, self.col, self.team,
+                                              self.hp, Unit.STARTING_HP)
+
     def get_position(self):
         return self.row, self.col
 
-    def tick(self, units):
-        did_move = self.move(units)
+    def tick(self, units, nothing_changed_last_time):
+        if not nothing_changed_last_time:
+            did_move = self.move(units)
+        else:
+            did_move = False
         killed_unit = self.attack(units)
         return did_move, killed_unit
 
     def move(self, units):
+        # print('moving', self)
+        # print('\t', 'calling get_targets')
         targets = self.get_targets(units)
+        # print('\t', 'targets:', ', '.join(str(t) for t in targets))
         if not targets:
+            # print('\t', '!!! no targets found !!!')
             raise NoMoreTargetsException()
+        # print('\t', 'calling get_unit_valid_adjacent_positions')
         target_adjacent_positions = get_unit_valid_adjacent_positions(targets)
+        # print('\t', 'target_adjacent_positions', target_adjacent_positions)
         if self.get_position() in target_adjacent_positions:
+            # print('\t', '!!! already adjacent to a target !!!')
             return False
-        destination = self.select_destination(target_adjacent_positions)
+        try:
+            # print('\t', 'calling select_destination')
+            destination = self.select_destination(target_adjacent_positions)
+        except NoReachablePositions:
+            return False
+        # print('\t', 'calling select_first_step_towards')
         step_position = self.select_first_step_towards(destination)
         if step_position and step_position != self.get_position():
             self.move_to(step_position)
@@ -90,7 +123,9 @@ class Unit:
         return sorted(closest_positions)[0]
 
     def select_first_step_towards(self, position):
-        closest_to_me = select_closest_positions(position, self.get_position(),
+        adjacent_positions = get_valid_adjacent_positions(self.get_position(),
+                                                          self.grid)
+        closest_to_me = select_closest_positions(position, adjacent_positions,
                                                  self.grid)
         assert closest_to_me
         # choose based on reading order
@@ -107,9 +142,11 @@ class Unit:
         return get_valid_adjacent_positions(self.get_position(), self.grid)
 
     def attack(self, units):
-        if units:
-            raise Exception('Unimplemented')
-        return self
+        if not units:
+            raise Exception('Unimplemented', self)
+        if len(units) == 4444444:
+            return self
+        return None
 
 def get_unit_valid_adjacent_positions(units):
     positions = set()
@@ -127,14 +164,18 @@ def get_valid_adjacent_positions(position, grid):
             if grid[i][j].is_unoccupied()]
 
 def select_closest_positions(start, destinations, grid):
+    # print('select_closest_positions')
+    # print('\t', start, '->', ', '.join(str(d) for d in destinations))
     cur_positions = {start}
     visited = set()
     closest_positions = set()
     while not closest_positions:
+        # print('\t\t', 'cur_positions:', cur_positions)
         next_positions = set()
         if not cur_positions:
             raise NoReachablePositions()
         for position in cur_positions:
+            # print('\t\t\t', 'position:', position)
             if position in destinations:
                 closest_positions.add(position)
             else:
@@ -157,16 +198,36 @@ def solve(units):
 def run_combat(units):
     num_rounds = 0
     game_done = False
-    while not game_done:
+    nothing_changed_last_time = False
+    # while not game_done:
+    while not game_done and num_rounds < 4:
+        print(create_grid_string(next(iter(units)).grid))
+        print()
+        something_moved = False
+        something_killed = False
+        killed_units = set()
         for unit in sorted(units, key=lambda unit: unit.get_position()):
+            if unit in killed_units:
+                continue
             try:
-                unit.tick()
+                this_unit_moved, unit_killed = unit.tick(
+                    units, nothing_changed_last_time)
+                something_moved |= this_unit_moved
+                if unit_killed:
+                    something_killed = True
+                    killed_units.add(unit_killed)
             except NoMoreTargetsException:
                 game_done = True
                 break
         else:
             num_rounds += 1
+        units.difference_update(killed_units)
+        nothing_changed_last_time = not something_moved and \
+                                    not something_killed
     return num_rounds
+
+def create_grid_string(grid):
+    return '\n'.join(''.join(tile.to_char() for tile in row) for row in grid)
 
 ################################################################################
 # Input
