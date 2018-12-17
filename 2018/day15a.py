@@ -92,7 +92,7 @@ class Unit:
             did_move = self.move(units)
         else:
             did_move = False
-        killed_unit = self.attack(units)
+        killed_unit = self.attack(units, nothing_changed_last_time)
         return did_move, killed_unit
 
     def move(self, units):
@@ -159,14 +159,21 @@ class Unit:
     def is_adjacent_to(self, unit):
         return is_adjacent_to(self.get_position(), unit.get_position())
 
-    def attack(self, units):
-        global DEBUG_COUNTER #pylint: disable=global-statement
-        dprint('\n')
-        dprint('attack:', self)
-        target = self.select_adjacent_target(units)
+    def attack(self, units, nothing_changed_last_time):
+        if nothing_changed_last_time:
+            target = self.last_target
+        else:
+            dprint('\n')
+            dprint('attack:', self)
+            targets = self.get_targets(units)
+            if not targets:
+                raise NoMoreTargetsException()
+            target = self.select_adjacent_target(units)
         if not target:
+            self.last_target = None
             return None
         is_dead = target.attacked(self.attack_power)
+        self.last_target = target if not is_dead else None
         return target if is_dead else None
 
     def get_adjacent_targets(self, units):
@@ -240,50 +247,65 @@ def solve(units):
     total_hp = sum(unit.hp for unit in units)
     return num_rounds * total_hp
 
+def test(units):
+    before_grid_string = create_grid_string(next(iter(units)).grid, units)
+    num_rounds = run_combat(units)
+    total_hp = sum(unit.hp for unit in units)
+    after_grid_string = create_grid_string(next(iter(units)).grid, units,
+                                           show_hp=True)
+    lines = []
+    mid_index = len(lines) // 2
+    for i, (line1, line2) in enumerate(zip(before_grid_string.split('\n'),
+                                           after_grid_string.split('\n'))):
+        mid = '  -->  ' if i == mid_index else ' '*7
+        lines.append(line1 + mid + line2)
+    print('\n'.join(lines))
+    print()
+    print('Combat ends after {} full rounds'.format(num_rounds))
+    winners = next(iter(units)).team
+    winners_string = 'Goblins' if winners == Team.GOBLIN else 'Elves'
+    print('{} win with {} total hit points left'.format(winners_string,
+                                                        total_hp))
+    print('Outcome: {} * {} = {}'.format(num_rounds, total_hp,
+                                         num_rounds * total_hp))
+
 def run_combat(units):
     num_rounds = 0
     game_done = False
     nothing_changed_last_time = False
     while not game_done:
-    # while not game_done and num_rounds < 4:
-        print('After {} round{}:'.format(num_rounds,
-                                         's' if num_rounds != 1 else''))
-        print(create_grid_string(next(iter(units)).grid, units))
-        print()
-        something_moved = False
-        something_killed = False
+        something_changed = False
         killed_units = set()
         for unit in sorted(units, key=lambda unit: unit.get_position()):
             if unit in killed_units:
                 continue
             try:
                 this_unit_moved, unit_killed = unit.tick(
-                    units, nothing_changed_last_time)
-                something_moved |= this_unit_moved
+                    units, nothing_changed_last_time and not something_changed)
+                something_changed |= this_unit_moved or bool(unit_killed)
                 if unit_killed:
-                    something_killed = True
+                    units.remove(unit_killed)
                     killed_units.add(unit_killed)
             except NoMoreTargetsException:
+                # print('NoMoreTargetsException')
                 game_done = True
                 break
         else:
             num_rounds += 1
-        units.difference_update(killed_units)
-        nothing_changed_last_time = not something_moved and \
-                                    not something_killed
+        nothing_changed_last_time = not something_changed
     return num_rounds
 
-def create_grid_string(grid, units):
+def create_grid_string(grid, units, show_hp=False):
     lines = []
     for i, row in enumerate(grid):
         line = ''.join(tile.to_char() for tile in row)
-        units_on_line = {unit for unit in units if unit.get_position()[0] == i}
-        sorted_units = sorted(units_on_line, key=lambda u: u.get_position())
-        if sorted_units:
-            line += '   ' + ', '.join(create_hp_string(u) for u in sorted_units)
+        if show_hp:
+            units_on_line = {unit for unit in units if unit.get_position()[0] == i}
+            sorted_units = sorted(units_on_line, key=lambda u: u.get_position())
+            if sorted_units:
+                line += '   ' + ', '.join(create_hp_string(u) for u in sorted_units)
         lines.append(line)
     return '\n'.join(lines)
-    # return '\n'.join(''.join(tile.to_char() for tile in row) for row in grid)
 
 def create_hp_string(unit):
     return '{}({})'.format(unit.team.to_char(), unit.hp)
