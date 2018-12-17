@@ -163,7 +163,7 @@ class Unit:
         global DEBUG_COUNTER #pylint: disable=global-statement
         dprint('\n')
         dprint('attack:', self)
-        target = self.get_adjacent_target(units)
+        target = self.select_adjacent_target(units)
         if not target:
             return None
         is_dead = target.attacked(self.attack_power)
@@ -174,13 +174,14 @@ class Unit:
         dprint('\t', 'targets:', ', '.join(str(t) for t in targets))
         return {target for target in targets if self.is_adjacent_to(target)}
 
-    def get_adjacent_target(self, units):
+    def select_adjacent_target(self, units):
         adjacent_targets = self.get_adjacent_targets(units)
-        # choose based on reading order
         if not adjacent_targets:
             return None
         assert adjacent_targets
-        return sorted(adjacent_targets, key=lambda t: t.get_position())[0]
+        # choose based on lowest hp, then reading order
+        return sorted(adjacent_targets,
+                      key=lambda t: (t.hp, t.get_position()))[0]
 
     def attacked(self, attack_power):
         self.hp -= attack_power
