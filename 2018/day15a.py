@@ -161,15 +161,12 @@ class Unit:
 
     def attack(self, units):
         global DEBUG_COUNTER #pylint: disable=global-statement
-        DEBUG_COUNTER += 1
         dprint('\n')
         dprint('attack:', self)
         target = self.get_adjacent_target(units)
         if not target:
-            DEBUG_COUNTER -= 1
             return None
         is_dead = target.attacked(self.attack_power)
-        DEBUG_COUNTER -= 1
         return target if is_dead else None
 
     def get_adjacent_targets(self, units):
@@ -187,6 +184,8 @@ class Unit:
 
     def attacked(self, attack_power):
         self.hp -= attack_power
+        if self.hp <= 0:
+            self.grid[self.row][self.col].remove_occupant()
         return self.hp <= 0
 
 def get_unit_valid_adjacent_positions(units):
@@ -246,10 +245,9 @@ def run_combat(units):
     nothing_changed_last_time = False
     while not game_done:
     # while not game_done and num_rounds < 4:
-        print('num_rounds:', num_rounds)
-        print('\n'.join(str(unit) for unit in units))
-        print()
-        print(create_grid_string(next(iter(units)).grid))
+        print('After {} round{}:'.format(num_rounds,
+                                         's' if num_rounds != 1 else''))
+        print(create_grid_string(next(iter(units)).grid, units))
         print()
         something_moved = False
         something_killed = False
@@ -274,8 +272,20 @@ def run_combat(units):
                                     not something_killed
     return num_rounds
 
-def create_grid_string(grid):
-    return '\n'.join(''.join(tile.to_char() for tile in row) for row in grid)
+def create_grid_string(grid, units):
+    lines = []
+    for i, row in enumerate(grid):
+        line = ''.join(tile.to_char() for tile in row)
+        units_on_line = {unit for unit in units if unit.get_position()[0] == i}
+        sorted_units = sorted(units_on_line, key=lambda u: u.get_position())
+        if sorted_units:
+            line += '   ' + ', '.join(create_hp_string(u) for u in sorted_units)
+        lines.append(line)
+    return '\n'.join(lines)
+    # return '\n'.join(''.join(tile.to_char() for tile in row) for row in grid)
+
+def create_hp_string(unit):
+    return '{}({})'.format(unit.team.to_char(), unit.hp)
 
 ################################################################################
 # Input
