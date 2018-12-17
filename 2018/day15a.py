@@ -4,6 +4,12 @@
 import sys
 from enum import Enum, auto
 
+DEBUG_COUNTER = 0
+
+def dprint(*args, **kwargs):
+    if DEBUG_COUNTER > 0:
+        print(*args, **kwargs)
+
 ################################################################################
 # Classes
 ################################################################################
@@ -87,29 +93,36 @@ class Unit:
         return did_move, killed_unit
 
     def move(self, units):
-        # print('moving', self)
-        # print('\t', 'calling get_targets')
+        dprint('\n\n\n')
+        dprint('moving', self)
+        dprint('\t', 'calling get_targets')
         targets = self.get_targets(units)
-        # print('\t', 'targets:', ', '.join(str(t) for t in targets))
+        dprint('\t', 'targets:', ', '.join(str(t) for t in targets))
         if not targets:
-            # print('\t', '!!! no targets found !!!')
+            dprint('\t', '!!! no targets found !!!')
             raise NoMoreTargetsException()
-        # print('\t', 'calling get_unit_valid_adjacent_positions')
+        dprint('\t', 'calling get_unit_valid_adjacent_positions')
+        if any(self.is_adjacent_to(target.get_position())
+               for target in targets):
+            return False
         target_adjacent_positions = get_unit_valid_adjacent_positions(targets)
-        # print('\t', 'target_adjacent_positions', target_adjacent_positions)
+        dprint('\t', 'target_adjacent_positions', target_adjacent_positions)
         if self.get_position() in target_adjacent_positions:
-            # print('\t', '!!! already adjacent to a target !!!')
+            dprint('\t', '!!! already adjacent to a target !!!')
             return False
         try:
-            # print('\t', 'calling select_destination')
+            dprint('\t', 'calling select_destination')
             destination = self.select_destination(target_adjacent_positions)
         except NoReachablePositions:
             return False
-        # print('\t', 'calling select_first_step_towards')
+        dprint('\t', 'calling select_first_step_towards')
         step_position = self.select_first_step_towards(destination)
-        if step_position and step_position != self.get_position():
+        dprint('\t', 'step_position:', step_position)
+        if step_position != self.get_position():
+            dprint('\t', 'calling move_to')
             self.move_to(step_position)
             return True
+        print('\t', 'Already at', step_position)
         return False
 
     def get_targets(self, units):
@@ -141,6 +154,9 @@ class Unit:
     def get_valid_adjacent_positions(self):
         return get_valid_adjacent_positions(self.get_position(), self.grid)
 
+    def is_adjacent_to(self, position):
+        return is_adjacent_to(self.get_position(), position)
+
     def attack(self, units):
         if not units:
             raise Exception('Unimplemented', self)
@@ -159,23 +175,27 @@ def get_adjacent_positions(position):
     i, j = position
     return [(i + di, j + dj) for di, dj in DIDJS]
 
+def is_adjacent_to(position1, position2):
+    i, j = position1
+    return any(position2 == (i + di, j + dj) for di, dj in DIDJS)
+
 def get_valid_adjacent_positions(position, grid):
     return [(i, j) for i, j in get_adjacent_positions(position)
             if grid[i][j].is_unoccupied()]
 
 def select_closest_positions(start, destinations, grid):
-    # print('select_closest_positions')
-    # print('\t', start, '->', ', '.join(str(d) for d in destinations))
+    dprint('select_closest_positions')
+    dprint('\t', start, '->', ', '.join(str(d) for d in destinations))
     cur_positions = {start}
     visited = set()
     closest_positions = set()
     while not closest_positions:
-        # print('\t\t', 'cur_positions:', cur_positions)
+        dprint('\t\t', 'cur_positions:', cur_positions)
         next_positions = set()
         if not cur_positions:
             raise NoReachablePositions()
         for position in cur_positions:
-            # print('\t\t\t', 'position:', position)
+            dprint('\t\t\t', 'position:', position)
             if position in destinations:
                 closest_positions.add(position)
             else:
@@ -201,6 +221,10 @@ def run_combat(units):
     nothing_changed_last_time = False
     # while not game_done:
     while not game_done and num_rounds < 4:
+        # if num_rounds == 1:
+        #     global DEBUG_COUNTER #pylint: disable=global-statement
+        #     DEBUG_COUNTER += 1
+        print('num_rounds:', num_rounds)
         print(create_grid_string(next(iter(units)).grid))
         print()
         something_moved = False
@@ -220,6 +244,8 @@ def run_combat(units):
                 game_done = True
                 break
         else:
+            # if num_rounds == 1:
+            #     DEBUG_COUNTER -= 1
             num_rounds += 1
         units.difference_update(killed_units)
         nothing_changed_last_time = not something_moved and \
