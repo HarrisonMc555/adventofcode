@@ -1,27 +1,33 @@
 #!/usr/bin/env python3
 #pylint: disable=invalid-name
 
+import sys
 import re
 import copy
+from collections import defaultdict
 
 ################################################################################
 # Run
 ################################################################################
-def solve(examples):
+def solve(examples, instructions):
     opcode_to_fun = match_opcode_to_funs(examples)
-    print(opcode_to_fun)
-    # print(opcode_to_fun)
-    return examples
+    registers = defaultdict(int)
+    for instruction in instructions:
+        run_instruction(instruction, registers, opcode_to_fun)
+    assert 0 in registers
+    return registers[0]
+
+def run_instruction(instruction, registers, opcode_to_fun):
+    opcode, a, b, c = instruction
+    fun = opcode_to_fun[opcode]
+    fun(a, b, c, registers)
 
 NUM_OPCODES = 16
 def match_opcode_to_funs(examples):
     mapping = {opcode: set(FUNCTIONS) for opcode in range(NUM_OPCODES)}
-    # for example in examples:
-    for i, example in enumerate(examples):
+    for example in examples:
         matching_funs = get_matching_funs(example)
         opcode = get_opcode(example)
-        # print('\tExample #{}: {} -> {}'.format(
-        #     i, opcode, ', '.join(f.__name__ for f in matching_funs)))
         mapping[opcode].intersection_update(matching_funs)
     mapping_final = {}
     while len(mapping_final) < NUM_OPCODES:
@@ -36,11 +42,6 @@ def match_opcode_to_funs(examples):
         for opcode, funs in mapping.items():
             funs.difference_update(funs_to_remove)
         assert something_changed
-    # for opcode, funs in mapping.items():
-    #     # assert len(funs) == 1
-    #     if len(funs) != 1:
-    #         print('!!! {} has {} functions: {}'.format(
-    #             opcode, len(funs), ', '.join(f.__name__ for f in funs)))
     return mapping_final
 
 def get_matching_funs(example):
@@ -141,8 +142,8 @@ BEFORE_PATTERN = re.compile(r'Before: *\[(.*)\]')
 AFTER_PATTERN = re.compile(r'After: *\[(.*)\]')
 def get_input():
     examples = list(get_all_examples())
-    # get instructions...
-    return examples
+    instructions = get_all_instructions()
+    return examples, instructions
 
 def get_all_examples():
     while True:
@@ -158,6 +159,12 @@ def get_all_examples():
         after = get_ints(AFTER_PATTERN.match(after_line).groups()[0], ', ')
         yield before, instruction, after
 
+def get_all_instructions():
+    return [parse_instruction(line.strip()) for line in sys.stdin.readlines()]
+
+def parse_instruction(line):
+    return tuple(int(w) for w in line.split(' '))
+
 def get_ints(string, sep=' '):
     return to_ints(string.split(sep))
 
@@ -165,8 +172,8 @@ def to_ints(strings):
     return [int(s) for s in strings]
 
 def main():
-    examples = get_input()
-    print(solve(examples))
+    examples, instructions = get_input()
+    print(solve(examples, instructions))
 
 if __name__ == '__main__':
     main()
