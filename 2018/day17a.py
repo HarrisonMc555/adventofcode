@@ -12,9 +12,9 @@ from collections import defaultdict
 class Square(Enum):
     SAND = auto()
     CLAY = auto()
-    WATER = auto()
-    # WATER_FALLING = auto()
-    # WATER_AT_REST = auto()
+    # WATER = auto()
+    WATER_FALLING = auto()
+    WATER_AT_REST = auto()
 
     def is_sand(self):
         return self == Square.SAND
@@ -22,26 +22,29 @@ class Square(Enum):
     def is_clay(self):
         return self == Square.CLAY
 
+    def is_water_falling(self):
+        return self == Square.WATER_FALLING
+
+    def is_water_at_rest(self):
+        return self == Square.WATER_AT_REST
+
     def is_water(self):
-        return self == Square.WATER
+        return self.is_water_falling() or self.is_water_at_rest()
 
-    # def is_water_falling(self):
-    #     return self == Square.WATER_FALLING
-
-    # def is_water_at_rest(self):
-    #     return self == Square.WATER_AT_REST
+    def is_supportive(self):
+        return self.is_clay() or self.is_water_at_rest()
 
     def to_char(self):
         if self == Square.SAND:
             return '.'
         if self == Square.CLAY:
             return '#'
-        if self == Square.WATER:
-            return '|'
-        # if self == Square.WATER_FALLING:
+        # if self == Square.WATER:
         #     return '|'
-        # if self == Square.WATER_AT_REST:
-        #     return '~'
+        if self == Square.WATER_FALLING:
+            return '|'
+        if self == Square.WATER_AT_REST:
+            return '~'
         raise Exception('Invalid Square value:', self)
 
 class Grid:
@@ -108,10 +111,10 @@ def fill_down_from(grid, location):
         return []
     while row <= grid.max_row and grid[row][col].is_sand():
         # print('\t', 'water fell down to', (row, col))
-        grid[row][col] = Square.WATER
+        grid[row][col] = Square.WATER_FALLING
         row += 1
     # print(grid.create_printable_string())
-    if row <= grid.max_row and grid[row][col].is_clay():
+    if row <= grid.max_row and grid[row][col].is_supportive():
         return [(fill_across_from, (row - 1, col))]
     return []
 
@@ -125,29 +128,33 @@ def fill_across_from(grid, location):
     # below must be clay or water (i.e. not sand)
     # print('\tgoing left...')
     # while not grid[row][col].is_clay() and not grid[row + 1][col].is_sand():
-    while not grid[row][col].is_clay() and not grid[row + 1][col].is_sand():
+    while not grid[row][col].is_clay() and grid[row + 1][col].is_supportive():
         # print('\t', 'water spread across to', (row, col))
-        grid[row][col] = Square.WATER
+        grid[row][col] = Square.WATER_FALLING
         col -= 1
     if grid[row][col].is_sand() and grid[row + 1][col].is_sand():
         # print('\t', 'falling over to the left at', (row, col))
         new_entries.append((fill_down_from, (row, col)))
     hit_wall_left = grid[row][col].is_clay()
+    left_col = col + 1
     # go right
     col = start_col + 1
     # print('\tgoing right...')
-    while not grid[row][col].is_clay() and not grid[row + 1][col].is_sand():
+    while not grid[row][col].is_clay() and grid[row + 1][col].is_supportive():
         # print('\t', 'water spread across to', (row, col))
-        grid[row][col] = Square.WATER
+        grid[row][col] = Square.WATER_FALLING
         col += 1
     if grid[row][col].is_sand() and grid[row + 1][col].is_sand():
         # print('\t', 'falling over to the right at', (row, col))
         new_entries.append((fill_down_from, (row, col)))
     hit_wall_right = grid[row][col].is_clay()
+    right_col = col - 1
     # possibly go up
     if hit_wall_left and hit_wall_right:
         # print('\tgoing up...')
         new_entries.append((fill_across_from, (row - 1, start_col)))
+        for col in range(left_col, right_col + 1):
+            grid[row][col] = Square.WATER_AT_REST
     return new_entries
 
 ################################################################################
