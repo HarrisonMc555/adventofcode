@@ -80,10 +80,10 @@ class Grid:
 ################################################################################
 SPRING_COL = 500
 def solve(grid):
-    print(grid.create_printable_string())
+    # print(grid.create_printable_string())
     fill_with_water(grid, SPRING_COL)
-    print()
-    print(grid.create_printable_string())
+    # print()
+    # print(grid.create_printable_string())
     return count_water_squares(grid)
 
 def count_water_squares(grid):
@@ -99,59 +99,45 @@ def fill_with_water(grid, spring_col):
     stack = [(fill_down_from, location)]
     while stack:
         function, location = stack.pop()
-        # print(function.__name__, location)
         new_entries = function(grid, location)
         stack.extend(new_entries)
 
 def fill_down_from(grid, location):
-    # print('fill_down_from:', location)
     row, col = location
     if grid[row][col].is_water():
-        # print('\t', 'exiting early')
         return []
     while row <= grid.max_row and grid[row][col].is_sand():
-        # print('\t', 'water fell down to', (row, col))
         grid[row][col] = Square.WATER_FALLING
         row += 1
-    # print(grid.create_printable_string())
     if row <= grid.max_row and grid[row][col].is_supportive():
         return [(fill_across_from, (row - 1, col))]
     return []
 
 def fill_across_from(grid, location):
     new_entries = []
-    # print('fill_across_from:', location)
     row, start_col = location
     # go left
     col = start_col
     # square must be sand or water (i.e. not clay)
-    # below must be clay or water (i.e. not sand)
-    # print('\tgoing left...')
-    # while not grid[row][col].is_clay() and not grid[row + 1][col].is_sand():
+    # below must be supportive
     while not grid[row][col].is_clay() and grid[row + 1][col].is_supportive():
-        # print('\t', 'water spread across to', (row, col))
         grid[row][col] = Square.WATER_FALLING
         col -= 1
     if grid[row][col].is_sand() and grid[row + 1][col].is_sand():
-        # print('\t', 'falling over to the left at', (row, col))
         new_entries.append((fill_down_from, (row, col)))
     hit_wall_left = grid[row][col].is_clay()
     left_col = col + 1
     # go right
     col = start_col + 1
-    # print('\tgoing right...')
     while not grid[row][col].is_clay() and grid[row + 1][col].is_supportive():
-        # print('\t', 'water spread across to', (row, col))
         grid[row][col] = Square.WATER_FALLING
         col += 1
     if grid[row][col].is_sand() and grid[row + 1][col].is_sand():
-        # print('\t', 'falling over to the right at', (row, col))
         new_entries.append((fill_down_from, (row, col)))
     hit_wall_right = grid[row][col].is_clay()
     right_col = col - 1
     # possibly go up
     if hit_wall_left and hit_wall_right:
-        # print('\tgoing up...')
         new_entries.append((fill_across_from, (row - 1, start_col)))
         for col in range(left_col, right_col + 1):
             grid[row][col] = Square.WATER_AT_REST
@@ -164,7 +150,6 @@ def get_input():
     coordinates = set()
     for line in sys.stdin.readlines():
         coordinates.update(parse_line(line.strip()))
-    # return build_grid(coordinates)
     return Grid(coordinates)
 
 PATTERN = re.compile(r'([xy])=(\d+), ([xy])=(\d+)..(\d+)')
@@ -177,22 +162,6 @@ def parse_line(line):
     if xy1 == 'y':
         coordinates = [(b, a) for (a, b) in coordinates]
     return coordinates
-
-# def build_grid(coordinates):
-#     x_values = {x for x, _ in coordinates}
-#     y_values = {y for _, y in coordinates}
-#     min_x, max_x = min(x_values), max(x_values)
-#     min_y, max_y = min(y_values), max(y_values)
-#     grid = {}
-#     for x, y in coordinates:
-#         grid[y][x] = Square.CLAY
-#     for y in range(min_y, max_y + 1):
-#         row = defaultdict(lambda: Square.SAND)
-#         for x in range(min_x, max_x + 1):
-#             is_clay = (x, y) in coordinates
-#             row[x] = Square.CLAY if is_clay else Square.SAND
-#         grid[y] = row
-#     return grid
 
 ################################################################################
 # Run
