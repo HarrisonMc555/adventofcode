@@ -10,6 +10,7 @@ import copy
 def solve(examples):
     opcode_to_fun = match_opcode_to_funs(examples)
     print(opcode_to_fun)
+    # print(opcode_to_fun)
     return examples
 
 NUM_OPCODES = 16
@@ -19,15 +20,28 @@ def match_opcode_to_funs(examples):
     for i, example in enumerate(examples):
         matching_funs = get_matching_funs(example)
         opcode = get_opcode(example)
-        print('\tExample #{}: {} -> {}'.format(
-            i, opcode, ', '.join(f.__name__ for f in matching_funs)))
+        # print('\tExample #{}: {} -> {}'.format(
+        #     i, opcode, ', '.join(f.__name__ for f in matching_funs)))
         mapping[opcode].intersection_update(matching_funs)
-    for opcode, funs in mapping.items():
-        # assert len(funs) == 1
-        if len(funs) != 1:
-            print('!!! {} has {} functions: {}'.format(
-                opcode, len(funs), ', '.join(f.__name__ for f in funs)))
-    return {opcode: funs[0] for opcode, funs in mapping.items()}
+    mapping_final = {}
+    while len(mapping_final) < NUM_OPCODES:
+        funs_to_remove = set()
+        something_changed = False
+        for opcode, funs in mapping.items():
+            if len(funs) == 1:
+                fun = next(iter(funs))
+                mapping_final[opcode] = fun
+                funs_to_remove.add(fun)
+                something_changed = True
+        for opcode, funs in mapping.items():
+            funs.difference_update(funs_to_remove)
+        assert something_changed
+    # for opcode, funs in mapping.items():
+    #     # assert len(funs) == 1
+    #     if len(funs) != 1:
+    #         print('!!! {} has {} functions: {}'.format(
+    #             opcode, len(funs), ', '.join(f.__name__ for f in funs)))
+    return mapping_final
 
 def get_matching_funs(example):
     return [fun for fun in FUNCTIONS if fun_matches_example(fun, example)]
