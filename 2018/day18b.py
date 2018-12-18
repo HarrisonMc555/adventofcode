@@ -72,15 +72,64 @@ def get_surrounding_indices(row, col, num_rows, num_cols):
 ################################################################################
 NUM_MINUTES = 1000000000
 def solve(grid):
-    # print(create_grid_string(grid))
-    # for _ in range(NUM_MINUTES):
+    board_to_index = {}
+    index_to_board = {}
     for i in range(NUM_MINUTES):
-        if i % 10 == 0:
-            print('{} ({:.2f}%)'.format(i, i / NUM_MINUTES))
+        # if i % 10 == 0:
+        #     print('{} ({:.2f}%)'.format(i, i / NUM_MINUTES))
+        serialized_grid = serialize_grid(grid)
+        answer = find_answer(board_to_index, index_to_board, serialized_grid, i)
+        if answer is not None:
+            return answer
+        index_to_board[i] = serialize_grid(grid), calculate_resource_value(grid)
+        board_to_index[serialized_grid] = i
         grid = next_grid(grid)
-        # print()
-        # print(create_grid_string(grid))
     return calculate_resource_value(grid)
+
+def find_answer(board_to_index, index_to_board, serialized_grid, index):
+    if serialized_grid not in board_to_index:
+        return None
+    start, end = board_to_index[serialized_grid], index
+    length = end - start
+    answer_cycle_index = (NUM_MINUTES - start) % length
+    answer_absolute_index = start + answer_cycle_index
+    _, resource_value = index_to_board[answer_absolute_index]
+    return resource_value
+
+SERIALIZED_SQUARE_LENGTH = 2
+SLICE_SIZE = 8
+SQUARES_PER_SLICE = SLICE_SIZE // SERIALIZED_SQUARE_LENGTH
+def serialize_grid(grid):
+    return bytes(serialize_square_slice(square_slice) for square_slice in
+                 slices_of(flatten_gen(grid), SQUARES_PER_SLICE))
+
+def serialize_square_slice(square_slice):
+    num = 0
+    for i, square in enumerate(square_slice):
+        num += serialize_square(square) << (2*i)
+    return num
+
+def serialize_square(square):
+    if square.is_open_ground():
+        return 0
+    if square.is_lumberyard():
+        return 1
+    return 2
+
+def slices_of(enumerable, length):
+    cur = []
+    for value in enumerable:
+        cur.append(value)
+        if len(cur) == length:
+            yield cur
+            cur = []
+    if cur:
+        yield cur
+
+def flatten_gen(grid):
+    for row in grid:
+        for square in row:
+            yield square
 
 def next_grid(grid):
     return [[square.tick(i, j, grid) for j, square in enumerate(row)]
