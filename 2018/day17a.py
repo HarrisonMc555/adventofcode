@@ -25,6 +25,12 @@ class Square(Enum):
     def is_water(self):
         return self == Square.WATER
 
+    # def is_water_falling(self):
+    #     return self == Square.WATER_FALLING
+
+    # def is_water_at_rest(self):
+    #     return self == Square.WATER_AT_REST
+
     def to_char(self):
         if self == Square.SAND:
             return '.'
@@ -32,6 +38,10 @@ class Square(Enum):
             return '#'
         if self == Square.WATER:
             return '|'
+        # if self == Square.WATER_FALLING:
+        #     return '|'
+        # if self == Square.WATER_AT_REST:
+        #     return '~'
         raise Exception('Invalid Square value:', self)
 
 class Grid:
@@ -69,6 +79,7 @@ SPRING_COL = 500
 def solve(grid):
     print(grid.create_printable_string())
     fill_with_water(grid, SPRING_COL)
+    print()
     print(grid.create_printable_string())
     return count_water_squares(grid)
 
@@ -81,25 +92,32 @@ def count_water_squares(grid):
     return num_water_squares
 
 def fill_with_water(grid, spring_col):
-    row, col = grid.min_row, spring_col
-    fill_down_from(grid, (row, col))
+    location = grid.min_row, spring_col
+    stack = [(fill_down_from, location)]
+    while stack:
+        function, location = stack.pop()
+        # print(function.__name__, location)
+        new_entries = function(grid, location)
+        stack.extend(new_entries)
 
 def fill_down_from(grid, location):
-    print('fill_down_from:', location)
+    # print('fill_down_from:', location)
     row, col = location
     if grid[row][col].is_water():
-        print('\t', 'exiting early')
-        return
-    while row <= grid.max_row and not grid[row][col].is_clay():
+        # print('\t', 'exiting early')
+        return []
+    while row <= grid.max_row and grid[row][col].is_sand():
         # print('\t', 'water fell down to', (row, col))
         grid[row][col] = Square.WATER
         row += 1
     # print(grid.create_printable_string())
     if row <= grid.max_row and grid[row][col].is_clay():
-        fill_across_from(grid, (row - 1, col))
+        return [(fill_across_from, (row - 1, col))]
+    return []
 
 def fill_across_from(grid, location):
-    print('fill_across_from:', location)
+    new_entries = []
+    # print('fill_across_from:', location)
     row, start_col = location
     # go left
     col = start_col
@@ -113,7 +131,7 @@ def fill_across_from(grid, location):
         col -= 1
     if grid[row][col].is_sand() and grid[row + 1][col].is_sand():
         # print('\t', 'falling over to the left at', (row, col))
-        fill_down_from(grid, (row, col))
+        new_entries.append((fill_down_from, (row, col)))
     hit_wall_left = grid[row][col].is_clay()
     # go right
     col = start_col + 1
@@ -124,12 +142,13 @@ def fill_across_from(grid, location):
         col += 1
     if grid[row][col].is_sand() and grid[row + 1][col].is_sand():
         # print('\t', 'falling over to the right at', (row, col))
-        fill_down_from(grid, (row, col))
+        new_entries.append((fill_down_from, (row, col)))
     hit_wall_right = grid[row][col].is_clay()
     # possibly go up
     if hit_wall_left and hit_wall_right:
         # print('\tgoing up...')
-        fill_across_from(grid, (row - 1, start_col))
+        new_entries.append((fill_across_from, (row - 1, start_col)))
+    return new_entries
 
 ################################################################################
 # Input
