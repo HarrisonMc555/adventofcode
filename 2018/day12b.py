@@ -1,18 +1,49 @@
 #!/usr/bin/env python3
-#pylint: disable=invalid-name, too-few-public-methods
 
 import sys
 import re
 from collections import defaultdict
 
-class BiTree:
-    def __init__(self, left, mid, right):
-        self.left = left
-        self.mid = mid
-        self.right = right
+TO_LEFT, TO_RIGHT = 2, 2
+NUM_GENERATIONS = 50000000000
 
-def solve(initial_state, mapping, num_generations):
-    return sum(initial_state)
+def solve(initial_state, mapping):
+    state = initial_state
+    for _ in range(NUM_GENERATIONS):
+        state = next_state(state, mapping)
+    pots_with_flowers = get_plant_indices(state)
+    # print(pots_with_flowers)
+    return sum(pots_with_flowers)
+
+def find_cycle(index_to_pattern, pattern_to_index, pattern, index):
+    if pattern not in pattern_to_index:
+        return None
+    start, end = pattern_to_index[pattern], index
+    length = end - start
+    answer_cycle_index = (NUM_GENERATIONS - start) % length
+    answer_absolute_index = start + answer_cycle_index
+    # use index to figure out where the plants will be...
+    # calculate answer based on that
+
+def next_state(state, mapping):
+    plant_indices = get_plant_indices(state)
+    smallest, largest = min(plant_indices), max(plant_indices)
+    smallest_possible = smallest - 2
+    largest_possible = largest + 2
+    indices = range(smallest_possible, largest_possible + 1)
+    return defaultdict(bool, {i: next_pot(state, mapping, i)
+                              for i in indices})
+
+def next_pot(state, mapping, index):
+    mini_state = get_mini_state(state, index)
+    return mapping[mini_state]
+
+def get_mini_state(state, index):
+    indices = range(index - TO_LEFT, index + TO_RIGHT + 1)
+    return tuple(state[i] for i in indices)
+
+def get_plant_indices(state):
+    return {i for i, b in state.items() if b}
 
 def to_bool(char):
     return char == '#'
@@ -42,10 +73,10 @@ def parse_line(line):
     return mini_state, result
 
 def main():
-    # num_generations = 50000000000
-    num_generations = 20
     initial_state, mapping = get_input()
-    print(solve(initial_state, mapping, num_generations))
+    # print(initial_state)
+    # print(mapping)
+    print(solve(initial_state, mapping))
 
 if __name__ == '__main__':
     main()
