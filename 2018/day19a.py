@@ -1,32 +1,47 @@
 #!/usr/bin/env python3
 #pylint: disable=invalid-name
 
-import copy
+import sys
+import re
+from collections import defaultdict
 
 ################################################################################
 # Run
 ################################################################################
-def solve(examples):
-    num_matching_funs = [num_funs_matching_example(e) for e in examples]
-    return count(num_matching_funs, lambda n: n >= 3)
+def solve(ip_reg, instructions):
+    registers = run(ip_reg, instructions)
+    return registers[0]
 
-def num_funs_matching_example(example):
-    before, instruction, after = example
-    num_matching = 0
-    for fun in FUNCTIONS:
-        result = run_example_fun(before, instruction, fun)
-        if result == after:
-            num_matching += 1
-    return num_matching
-
-def run_example_fun(registers, instruction, fun):
-    registers = copy.deepcopy(registers)
-    _, a, b, c = instruction
-    fun(a, b, c, registers)
+def run(ip_reg, instructions):
+    registers = defaultdict(int)
+    ip = 0
+    while 0 <= ip < len(instructions):
+        # import copy
+        # old_registers = copy.deepcopy(registers)
+        registers[ip_reg] = ip
+        instruction = instructions[ip]
+        run_instruction(registers, instruction)
+        ip = registers[ip_reg]
+        # print(cycle_string(old_registers, registers, ip, instruction))
+        ip += 1
     return registers
 
-def count(enumerable, fun):
-    return sum(1 for val in enumerable if fun(val))
+def run_instruction(registers, instruction):
+    opname, a, b, c = instruction
+    fun = OPNAME_TO_FUN[opname]
+    fun(a, b, c, registers)
+
+def cycle_string(old_registers, registers, ip, instruction):
+    old_regs_str = registers_string(old_registers)
+    new_regs_str = registers_string(registers)
+    instruction_str = ' '.join(str(instr) for instr in  instruction)
+    return 'ip={} {} {} {}'.format(ip, old_regs_str, instruction_str,
+                                   new_regs_str)
+
+NUM_REGS = 6
+def registers_string(registers):
+    return '[{}]'.format(', '.join(str(registers[i])
+                                   for i in range(NUM_REGS)))
 
 ################################################################################
 # Instructions
@@ -79,22 +94,24 @@ def instruction_eqri(a, b, c, registers):
 def instruction_eqrr(a, b, c, registers):
     registers[c] = 1 if registers[a] == registers[b] else 0
 
-FUNCTIONS = [instruction_addr,
-             instruction_addi,
-             instruction_mulr,
-             instruction_muli,
-             instruction_banr,
-             instruction_bani,
-             instruction_borr,
-             instruction_bori,
-             instruction_setr,
-             instruction_seti,
-             instruction_gtir,
-             instruction_gtri,
-             instruction_gtrr,
-             instruction_eqir,
-             instruction_eqri,
-             instruction_eqrr]
+OPNAME_TO_FUN = {
+    'addr': instruction_addr,
+    'addi': instruction_addi,
+    'mulr': instruction_mulr,
+    'muli': instruction_muli,
+    'banr': instruction_banr,
+    'bani': instruction_bani,
+    'borr': instruction_borr,
+    'bori': instruction_bori,
+    'setr': instruction_setr,
+    'seti': instruction_seti,
+    'gtir': instruction_gtir,
+    'gtri': instruction_gtri,
+    'gtrr': instruction_gtrr,
+    'eqir': instruction_eqir,
+    'eqri': instruction_eqri,
+    'eqrr': instruction_eqrr,
+}
 
 ################################################################################
 # Input
@@ -105,14 +122,22 @@ def get_input():
     instructions = get_all_instructions()
     return ip_reg, instructions
 
+PATTERN = re.compile(r'#ip (\d+)')
 def get_ip_reg():
-    pass
+    first_line = input()
+    match = PATTERN.match(first_line)
+    groups = match.groups()
+    reg = groups[0]
+    return int(reg)
 
 def get_all_instructions():
     return [parse_instruction(line.strip()) for line in sys.stdin.readlines()]
 
 def parse_instruction(line):
-    return tuple(int(w) for w in line.split(' '))
+    words = line.split(' ')
+    opname, rest = words[0], words[1:]
+    lst = [opname] + [int(num) for num in rest]
+    return tuple(lst)
 
 def get_ints(string, sep=' '):
     return to_ints(string.split(sep))
@@ -121,8 +146,8 @@ def to_ints(strings):
     return [int(s) for s in strings]
 
 def main():
-    examples = get_input()
-    print(solve(examples))
+    ip_reg, instructions = get_input()
+    print(solve(ip_reg, instructions))
 
 if __name__ == '__main__':
     main()
