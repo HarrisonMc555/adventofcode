@@ -6,24 +6,58 @@ from collections import defaultdict
 
 TO_LEFT, TO_RIGHT = 2, 2
 NUM_GENERATIONS = 50000000000
+LOOP_LENGTH = 2**3 * 3**2 * 5 * 7
 
 def solve(initial_state, mapping):
     state = initial_state
-    for _ in range(NUM_GENERATIONS):
+    pattern_to_index_offset = {}
+    index_to_pattern_offset = {}
+    for index in range(NUM_GENERATIONS):
+        plant_indices = get_plant_indices(state)
+        pattern = get_pattern(plant_indices)
+        offset = get_offset(plant_indices)
+        answer = find_answer(pattern_to_index_offset, index_to_pattern_offset,
+                             pattern, offset, index)
+        if answer is not None:
+            return answer
+        index_to_pattern_offset[index] = pattern, offset
+        pattern_to_index_offset[pattern] = index, offset
         state = next_state(state, mapping)
     pots_with_flowers = get_plant_indices(state)
-    # print(pots_with_flowers)
     return sum(pots_with_flowers)
 
-def find_cycle(index_to_pattern, pattern_to_index, pattern, index):
-    if pattern not in pattern_to_index:
+def find_answer(pattern_to_index_offset, index_to_pattern_offset, pattern,
+                offset, index):
+    result = find_cycle(pattern_to_index_offset, pattern, index, offset)
+    if result is None:
         return None
-    start, end = pattern_to_index[pattern], index
-    length = end - start
-    answer_cycle_index = (NUM_GENERATIONS - start) % length
-    answer_absolute_index = start + answer_cycle_index
-    # use index to figure out where the plants will be...
-    # calculate answer based on that
+    answer_index, cycle_offset, num_cycles = result
+    pattern, offset = index_to_pattern_offset[answer_index]
+    return calculate_answer(pattern, offset, num_cycles, cycle_offset)
+
+def get_pattern(plant_indices):
+    plant_indices = sorted(plant_indices)
+    min_index = plant_indices[0]
+    return tuple(plant_index - min_index for plant_index in plant_indices)
+
+def get_offset(plant_indices):
+    return min(plant_indices)
+
+def find_cycle(pattern_to_index_offset, pattern, index, offset):
+    if pattern not in pattern_to_index_offset:
+        return None
+    start_index, first_offset = pattern_to_index_offset[pattern]
+    end_index = index
+    cycle_length = end_index - start_index
+    answer_cycle_index = (NUM_GENERATIONS - start_index) % cycle_length
+    answer_absolute_index = start_index + answer_cycle_index
+    num_cycles = (NUM_GENERATIONS - start_index) // cycle_length
+    cycle_offset = offset - first_offset
+    return answer_absolute_index, cycle_offset, num_cycles
+
+def calculate_answer(pattern, pattern_offset, num_cycles, cycle_offset):
+    offset = pattern_offset + num_cycles*cycle_offset
+    return sum(offset + pot_offset for pot_offset in pattern)
 
 def next_state(state, mapping):
     plant_indices = get_plant_indices(state)
@@ -56,7 +90,6 @@ def get_input():
     initial_state = parse_initial_state(initial_state_line)
     notes = [parse_line(line) for line in notes_lines]
 
-    # mapping = dict(notes)
     mapping = defaultdict(bool, notes)
     return initial_state, mapping
 
@@ -74,8 +107,6 @@ def parse_line(line):
 
 def main():
     initial_state, mapping = get_input()
-    # print(initial_state)
-    # print(mapping)
     print(solve(initial_state, mapping))
 
 if __name__ == '__main__':
