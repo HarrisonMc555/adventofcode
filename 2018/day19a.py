@@ -15,15 +15,31 @@ def solve(ip_reg, instructions):
 def run(ip_reg, instructions):
     registers = defaultdict(int)
     ip = 0
+    # while 0 <= ip < len(instructions):
+    #     # import copy
+    #     # old_registers = copy.deepcopy(registers)
+    #     registers[ip_reg] = ip
+    #     instruction = instructions[ip]
+    #     run_instruction(registers, instruction)
+    #     ip = registers[ip_reg]
+    #     # print(cycle_string(old_registers, registers, ip, instruction))
+    #     ip += 1
+    debug_index = 0
+    # while 0 <= ip < len(instructions):
     while 0 <= ip < len(instructions):
-        # import copy
-        # old_registers = copy.deepcopy(registers)
+        import copy
+        old_registers = copy.deepcopy(registers)
+        old_ip = ip
         registers[ip_reg] = ip
         instruction = instructions[ip]
         run_instruction(registers, instruction)
         ip = registers[ip_reg]
-        # print(cycle_string(old_registers, registers, ip, instruction))
+        print('{: 3d}: '.format(debug_index), end='')
+        print(cycle_string(old_registers, registers, old_ip, instruction))
         ip += 1
+        debug_index += 1
+        if debug_index >= 40:
+            exit()
     return registers
 
 def run_instruction(registers, instruction):

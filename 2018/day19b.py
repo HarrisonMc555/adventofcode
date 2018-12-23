@@ -8,24 +8,35 @@ from collections import defaultdict
 ################################################################################
 # Run
 ################################################################################
-def solve(ip_reg, instructions):
-    registers = run(ip_reg, instructions)
-    return registers[0]
+def solve(_ip_reg, _instructions):
+    max_num = 10551373
+    return sum(x for x in range(1, max_num + 1) if max_num % x == 0)
+
+# def solve(ip_reg, instructions):
+#     registers = run(ip_reg, instructions)
+#     return registers[0]
 
 def run(ip_reg, instructions):
     registers = defaultdict(int)
     # change
     registers[0] = 1
     ip = 0
+    debug_index = 0
+    # while 0 <= ip < len(instructions):
     while 0 <= ip < len(instructions):
-        # import copy
-        # old_registers = copy.deepcopy(registers)
+        import copy
+        old_registers = copy.deepcopy(registers)
+        old_ip = ip
         registers[ip_reg] = ip
         instruction = instructions[ip]
         run_instruction(registers, instruction)
         ip = registers[ip_reg]
-        # print(cycle_string(old_registers, registers, ip, instruction))
+        print('{: 3d}: '.format(debug_index), end='')
+        print(cycle_string(old_registers, registers, old_ip, instruction))
         ip += 1
+        debug_index += 1
+        if debug_index >= 40:
+            exit()
     return registers
 
 def run_instruction(registers, instruction):
@@ -37,12 +48,12 @@ def cycle_string(old_registers, registers, ip, instruction):
     old_regs_str = registers_string(old_registers)
     new_regs_str = registers_string(registers)
     instruction_str = ' '.join(str(instr) for instr in  instruction)
-    return 'ip={} {} {} {}'.format(ip, old_regs_str, instruction_str,
-                                   new_regs_str)
+    return 'ip={: 3} {} {} {}'.format(
+        ip, old_regs_str, instruction_str, new_regs_str)
 
 NUM_REGS = 6
 def registers_string(registers):
-    return '[{}]'.format(', '.join(str(registers[i])
+    return '[{}]'.format(', '.join('{:3}'.format(registers[i])
                                    for i in range(NUM_REGS)))
 
 ################################################################################
