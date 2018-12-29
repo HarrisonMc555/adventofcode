@@ -3,41 +3,73 @@
 
 import sys
 import re
+import copy
 from collections import defaultdict
 
 ################################################################################
 # Run
 ################################################################################
-def solve(_ip_reg, _instructions):
-    max_num = 10551373
-    return sum(x for x in range(1, max_num + 1) if max_num % x == 0)
+class NoHaltException(Exception):
+    pass
 
-# def solve(ip_reg, instructions):
-#     registers = run(ip_reg, instructions)
-#     return registers[0]
+def solve(ip_reg, instructions):
+    start_value = 0
+    while True:
+        try:
+            print('Trying start value of', start_value)
+            run(ip_reg, instructions, start_value)
+        except NoHaltException:
+            # print('No halt with', start_value)
+            start_value += 1
+    return start_value
 
-def run(ip_reg, instructions):
+SPECIAL_REGISTER = 0
+def run(ip_reg, instructions, start_value):
+    # print('run')
     registers = defaultdict(int)
     # change
-    registers[0] = 1
+    registers[SPECIAL_REGISTER] = start_value
     ip = 0
     debug_index = 0
-    # while 0 <= ip < len(instructions):
+    seen_states = set()
+    old_ip = None
+    times_hacked = 0
     while 0 <= ip < len(instructions):
-        import copy
         old_registers = copy.deepcopy(registers)
+        if old_ip is not None:
+            old_old_ip = old_ip
         old_ip = ip
         registers[ip_reg] = ip
+        state = get_state(ip, registers)
+        if state in seen_states:
+            print('\t', 'reached instruction', old_old_ip)
+            raise NoHaltException
+        seen_states.add(state)
+        # super debug
         instruction = instructions[ip]
         run_instruction(registers, instruction)
+        if ip == 17 and times_hacked == 0:
+            print('hacking the system!')
+            print('before:', registers)
+            registers[1] = 255
+            print('after:', registers)
+            times_hacked += 1
         ip = registers[ip_reg]
         print('{: 3d}: '.format(debug_index), end='')
         print(cycle_string(old_registers, registers, old_ip, instruction))
         ip += 1
         debug_index += 1
-        if debug_index >= 40:
-            exit()
+        # if debug_index >= 40:
+        #     exit()
+        # if debug_index % 1000 == 0:
+        #     print('r1 =', registers[1])
+        if debug_index % 5 == 0:
+            input()
     return registers
+
+def get_state(ip, registers):
+    registers_state = tuple(v for k, v in sorted(registers.items()))
+    return (ip, registers_state)
 
 def run_instruction(registers, instruction):
     opname, a, b, c = instruction
@@ -144,7 +176,13 @@ def get_ip_reg():
     return int(reg)
 
 def get_all_instructions():
-    return [parse_instruction(line.strip()) for line in sys.stdin.readlines()]
+    # return [parse_instruction(line.strip()) for line in sys.stdin.readlines()]
+    lines = []
+    line = input()
+    while line:
+        lines.append(parse_instruction(line.strip()))
+        line = input()
+    return lines
 
 def parse_instruction(line):
     words = line.split(' ')
