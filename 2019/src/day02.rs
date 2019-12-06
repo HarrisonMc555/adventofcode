@@ -81,7 +81,7 @@ fn alter_program(program: &mut [Value], noun: Value, verb: Value) -> Result<()> 
     Ok(())
 }
 
-fn get_copy_or_err<T: Clone>(arr: &[T], index: usize) -> Result<T> {
+fn get_copy_or_err<T: Copy>(arr: &[T], index: usize) -> Result<T> {
     arr.get(index).ok_or(()).map(std::clone::Clone::clone)
 }
 
