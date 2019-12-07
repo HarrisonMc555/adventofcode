@@ -1,5 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::hash::Hash;
 use std::iter::Rev;
 use std::ops::{Add, RangeInclusive};
 
@@ -29,6 +30,7 @@ struct Position {
 
 type Segments = Vec<Segment>;
 type Positions = HashSet<Position>;
+type Distances = HashMap<Position, usize>;
 
 // const INPUT: &str = "R8,U5,L5,D3\nU7,R6,D4,L4";
 // const INPUT: &str = "R75,D30,R83,U83,L12,D49,R71,U7,L72\nU62,R66,U55,R34,D71,R55,D58,R83";
@@ -38,7 +40,9 @@ const INPUT: &str = include_str!("../static/day03.txt");
 
 pub fn main() {
     let answer1 = solve1(INPUT).unwrap();
+    let answer2 = solve2(INPUT).unwrap();
     println!("{}", answer1);
+    println!("{}", answer2);
 }
 
 fn solve1(input: &str) -> Result<isize> {
@@ -48,27 +52,60 @@ fn solve1(input: &str) -> Result<isize> {
     let common_positions = &positions1 & &positions2;
     let mut cp = common_positions.iter().collect::<Vec<_>>();
     cp.sort_by_key(|pos| pos.manhattan_distance(CENTER));
-    find_closest_distance(common_positions, CENTER).ok_or(())
+    find_closest_distance(&common_positions, CENTER).ok_or(())
 }
 
-fn find_closest_distance(positions: Positions, target: Position) -> Option<isize> {
+fn solve2(input: &str) -> Result<usize> {
+    let (segments1, segments2) = parse_input(input)?;
+    let distances1 = find_distances(segments1);
+    let distances2 = find_distances(segments2);
+    find_fewest_steps(&distances1, &distances2).ok_or(())
+}
+
+fn find_closest_distance(positions: &Positions, target: Position) -> Option<isize> {
     positions
         .iter()
         .map(|pos| pos.manhattan_distance(target))
         .min()
 }
 
+fn find_fewest_steps(distances1: &Distances, distances2: &Distances) -> Option<usize> {
+    let common_positions = distances1.keys().filter(|k| distances2.contains_key(k));
+    common_positions
+        .filter_map(|k| {
+            let distance1 = distances1.get(k)?;
+            let distance2 = distances2.get(k)?;
+            Some(distance1 + distance2)
+        })
+        .min()
+        // Distances don't include either starting position
+        .map(|n| n + 2)
+}
+
 fn find_traversed_positions(segments: Segments) -> Positions {
     let mut pos = Position::new(0, 0);
     let mut positions = HashSet::new();
     for segment in segments {
-        let old_pos = pos.clone();
         for intermediate_pos in pos.intermediate_positions(&segment) {
             positions.insert(intermediate_pos);
         }
-        pos = old_pos + segment;
+        pos = pos + segment;
     }
     positions
+}
+
+fn find_distances(segments: Segments) -> Distances {
+    let mut pos = Position::new(0, 0);
+    let mut distances = HashMap::new();
+    let mut index = 0;
+    for segment in segments {
+        for intermediate_pos in pos.intermediate_positions(&segment) {
+            distances.insert(intermediate_pos, index);
+            index += 1;
+        }
+        pos = pos + segment;
+    }
+    distances
 }
 
 fn parse_input(input: &str) -> Result<(Segments, Segments)> {
