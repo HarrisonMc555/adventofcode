@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::fmt;
-use std::ops::Add;
+use std::iter::Rev;
+use std::ops::{Add, RangeInclusive};
 
 const CENTER: Position = Position { x: 0, y: 0 };
 
@@ -31,8 +32,9 @@ type Positions = HashSet<Position>;
 
 // const INPUT: &str = "R8,U5,L5,D3\nU7,R6,D4,L4";
 // const INPUT: &str = "R75,D30,R83,U83,L12,D49,R71,U7,L72\nU62,R66,U55,R34,D71,R55,D58,R83";
-const INPUT: &str = "R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51\nU98,R91,D20,R16,D67,R40,U7,R15,U6,R7";
-// const INPUT: &str = include_str!("../static/day03.txt");
+// const INPUT: &str =
+//     "R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51\nU98,R91,D20,R16,D67,R40,U7,R15,U6,R7";
+const INPUT: &str = include_str!("../static/day03.txt");
 
 pub fn main() {
     let answer1 = solve1(INPUT).unwrap();
@@ -41,16 +43,11 @@ pub fn main() {
 
 fn solve1(input: &str) -> Result<isize> {
     let (segments1, segments2) = parse_input(input)?;
-    // eprintln!("finding positions1:");
     let positions1 = find_traversed_positions(segments1);
-    // eprintln!("finding positions2:");
     let positions2 = find_traversed_positions(segments2);
     let common_positions = &positions1 & &positions2;
     let mut cp = common_positions.iter().collect::<Vec<_>>();
     cp.sort_by_key(|pos| pos.manhattan_distance(CENTER));
-    for p in cp.iter().take(10) {
-        // eprintln!("{:?} -> {} units", p, p.manhattan_distance(CENTER));
-    }
     find_closest_distance(common_positions, CENTER).ok_or(())
 }
 
@@ -64,23 +61,10 @@ fn find_closest_distance(positions: Positions, target: Position) -> Option<isize
 fn find_traversed_positions(segments: Segments) -> Positions {
     let mut pos = Position::new(0, 0);
     let mut positions = HashSet::new();
-    eprintln!("Starting at {:?}", &pos);
     for segment in segments {
         let old_pos = pos.clone();
-        eprintln!("\tCurrent pos {:?}", &pos);
-        eprintln!("\tSegment {:?}", &segment);
         for intermediate_pos in pos.intermediate_positions(&segment) {
-            eprintln!("\t\tIntermediate pos {:?}", &intermediate_pos);
-            pos = intermediate_pos;
             positions.insert(intermediate_pos);
-        }
-        if pos != old_pos.clone() + segment.clone() {
-            eprintln!(
-                "pos ({:?}) != old_pos ({:?}) + segment ({:?})",
-                &pos,
-                &old_pos,
-                &segment
-            );
         }
         pos = old_pos + segment;
     }
@@ -168,9 +152,7 @@ impl Position {
             Direction::Down => (y - 1, y - len),
             Direction::Left => (x - 1, x - len),
         };
-        // This doesn't work because end..=beg is going backwards and ends up in
-        // the wrong spot
-        let range = if beg < end { beg..=end } else { end..=beg };
+        let range = EitherRangeInclusive::new(beg, end);
         range.map(move |num| match segment.direction {
             Direction::Up | Direction::Down => Position::new(x, num),
             Direction::Left | Direction::Right => Position::new(num, y),
@@ -193,5 +175,80 @@ impl fmt::Display for Direction {
             Direction::Left => "L",
         };
         write!(f, "{}", s)
+    }
+}
+
+enum EitherRangeInclusive {
+    Up(RangeInclusive<isize>),
+    Down(Rev<RangeInclusive<isize>>),
+}
+
+impl Iterator for EitherRangeInclusive {
+    type Item = isize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            EitherRangeInclusive::Up(iter) => iter.next(),
+            EitherRangeInclusive::Down(iter) => iter.next(),
+        }
+    }
+}
+
+impl EitherRangeInclusive {
+    fn new(start: isize, end: isize) -> Self {
+        if start <= end {
+            EitherRangeInclusive::Up(start..=end)
+        } else {
+            let new_start = end;
+            let new_end = start;
+            EitherRangeInclusive::Down((new_start..=new_end).rev())
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::EitherRangeInclusive;
+
+    #[test]
+    fn either_range_up() {
+        let mut iter = EitherRangeInclusive::new(0, 3);
+        assert_eq!(iter.next(), Some(0));
+        assert_eq!(iter.next(), Some(1));
+        assert_eq!(iter.next(), Some(2));
+        assert_eq!(iter.next(), Some(3));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn either_range_down() {
+        let mut iter = EitherRangeInclusive::new(3, 0);
+        assert_eq!(iter.next(), Some(3));
+        assert_eq!(iter.next(), Some(2));
+        assert_eq!(iter.next(), Some(1));
+        assert_eq!(iter.next(), Some(0));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn either_range_up_negative() {
+        let mut iter = EitherRangeInclusive::new(-2, 2);
+        assert_eq!(iter.next(), Some(-2));
+        assert_eq!(iter.next(), Some(-1));
+        assert_eq!(iter.next(), Some(0));
+        assert_eq!(iter.next(), Some(1));
+        assert_eq!(iter.next(), Some(2));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn either_range_down_negative() {
+        let mut iter = EitherRangeInclusive::new(1, -3);
+        assert_eq!(iter.next(), Some(1));
+        assert_eq!(iter.next(), Some(0));
+        assert_eq!(iter.next(), Some(-1));
+        assert_eq!(iter.next(), Some(-2));
+        assert_eq!(iter.next(), Some(-3));
+        assert_eq!(iter.next(), None);
     }
 }
