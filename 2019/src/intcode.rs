@@ -17,6 +17,8 @@ pub type Value = usize;
 
 const OPCODE_ADD: Value = 1;
 const OPCODE_MUL: Value = 2;
+const OPCODE_INPUT: Value = 3;
+const OPCODE_OUTPUT: Value = 4;
 const OPCODE_HALT: Value = 99;
 
 pub const MAX_NOUN: Value = 99;
@@ -56,12 +58,34 @@ impl IntCode {
 
     fn step(&mut self) -> Result<Going> {
         let opcode = self.next()?;
-        let op: BinaryOp = match opcode {
-            OPCODE_ADD => ops::Add::add,
-            OPCODE_MUL => ops::Mul::mul,
+        let _ = match opcode {
+            OPCODE_ADD => self.op_add()?,
+            OPCODE_MUL => self.op_mul()?,
+            OPCODE_INPUT => self.op_input()?,
+            OPCODE_OUTPUT => self.op_output()?,
             OPCODE_HALT => return Ok(Going::Stop),
             _ => return Err(()),
         };
+        Ok(Going::Continue)
+    }
+
+    fn op_add(&mut self) -> Result<()> {
+        self.binary_op(ops::Add::add)
+    }
+
+    fn op_mul(&mut self) -> Result<()> {
+        self.binary_op(ops::Mul::mul)
+    }
+
+    fn op_input(&mut self) -> Result<()> {
+        Err(())
+    }
+
+    fn op_output(&mut self) -> Result<()> {
+        Err(())
+    }
+
+    fn binary_op(&mut self, op: BinaryOp) -> Result<()> {
         let op1_index = self.next()?;
         let op2_index = self.next()?;
         let dest_index = self.next()?;
@@ -69,7 +93,7 @@ impl IntCode {
         let op2 = self.get(op2_index)?;
         let dest = self.get_mut(dest_index)?;
         *dest = op(op1, op2);
-        Ok(Going::Continue)
+        Ok(())
     }
 
     fn next(&mut self) -> Result<Value> {
