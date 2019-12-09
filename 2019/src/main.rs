@@ -3,8 +3,9 @@ use std::env;
 mod day01;
 mod day02;
 mod day03;
+mod day04;
 
-const DEFAULT_FN: fn() = day03::main;
+const DEFAULT_FN: fn() = day04::main;
 
 fn main() {
     let f = env::args()
@@ -14,6 +15,7 @@ fn main() {
                 "1" => day01::main,
                 "2" => day02::main,
                 "3" => day03::main,
+                "4" => day04::main,
                 _ => {
                     eprintln!("Unimplmented day {}", num);
                     return None;
