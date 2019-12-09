@@ -4,6 +4,13 @@ use std::ops;
 pub struct IntCode {
     memory: Vec<Value>,
     index: usize,
+    inputs: Vec<Value>,
+    outputs: Vec<Value>,
+}
+
+pub struct Product {
+    memory: Vec<Value>,
+    outputs: Vec<Value>,
 }
 
 enum Going {
@@ -32,17 +39,31 @@ impl IntCode {
     }
 
     fn new(memory: Vec<Value>) -> Self {
-        IntCode { memory, index: 0 }
+        IntCode {
+            memory,
+            index: 0,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+        }
     }
 
-    pub fn run(mut self) -> Result<Value> {
+    pub fn run(mut self) -> Result<Product> {
         loop {
             match self.step()? {
                 Going::Continue => (),
                 Going::Stop => break,
             }
         }
-        self.get(0)
+        // Outputs are currently in reverse order, un-reverse them
+        self.outputs.reverse();
+        Ok(Product::new(self.memory, self.outputs))
+    }
+
+    pub fn with_inputs(mut self, mut inputs: Vec<Value>) -> Self {
+        // We want inputs in reverse order so we can pop them off one by one
+        inputs.reverse();
+        self.inputs = inputs;
+        self
     }
 
     pub fn altered(mut self, noun: Value, verb: Value) -> Result<Self> {
@@ -78,11 +99,18 @@ impl IntCode {
     }
 
     fn op_input(&mut self) -> Result<()> {
-        Err(())
+        let input = self.inputs.pop().ok_or(())?;
+        let param_index = self.next()?;
+        let dest = self.get_mut(param_index)?;
+        *dest = input;
+        Ok(())
     }
 
     fn op_output(&mut self) -> Result<()> {
-        Err(())
+        let param_index = self.next()?;
+        let value = self.get(param_index)?;
+        self.outputs.push(value);
+        Ok(())
     }
 
     fn binary_op(&mut self, op: BinaryOp) -> Result<()> {
@@ -103,12 +131,37 @@ impl IntCode {
     }
 
     fn get(&self, index: usize) -> Result<Value> {
-        self.memory.get(index).copied().ok_or(())
+        get(&self.memory, index)
     }
 
     fn get_mut(&mut self, index: usize) -> Result<&mut Value> {
         self.memory.get_mut(index).ok_or(())
     }
+}
+
+impl Product {
+    pub fn new(memory: Vec<Value>, outputs: Vec<Value>) -> Self {
+        Product { memory, outputs }
+    }
+
+    pub fn memory(&self) -> &[Value] {
+        &self.memory
+    }
+
+    pub fn outputs(&self) -> &[Value] {
+        &self.outputs
+    }
+
+    pub fn get(&self, index: usize) -> Result<Value> {
+        get(&self.memory, index)
+    }
+}
+
+fn get<T>(slice: &[T], index: usize) -> Result<T>
+where
+    T: Copy,
+{
+    slice.get(index).copied().ok_or(())
 }
 
 impl std::str::FromStr for IntCode {

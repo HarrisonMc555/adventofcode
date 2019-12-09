@@ -17,14 +17,14 @@ pub fn main() {
 fn solve1(input: &str, noun: Value, verb: Value) -> Result<Value> {
     // let program = parse_input(input)?;
     // run_altered(program, noun, verb)
-    IntCode::from_str(input)?.altered(noun, verb)?.run()
+    IntCode::from_str(input)?.altered(noun, verb)?.run()?.get(0)
 }
 
 fn solve2(input: &str, output_goal: Value) -> Result<Value> {
     let program = IntCode::from_str(input)?;
     for noun in 0..=MAX_NOUN {
         for verb in 0..=MAX_VERB {
-            if program.clone().altered(noun, verb)?.run() == Ok(output_goal) {
+            if program.clone().altered(noun, verb)?.run()?.get(0) == Ok(output_goal) {
                 return Ok(100 * noun + verb);
             }
         }
