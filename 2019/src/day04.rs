@@ -1,3 +1,5 @@
+use crate::digits::Digits;
+
 const INPUT: &str = include_str!("../static/day04.txt");
 
 type Result<T> = std::result::Result<T, ()>;
@@ -23,12 +25,12 @@ fn solve2(input: &str) -> Result<usize> {
 }
 
 fn meets_criteria1(password: Value) -> bool {
-    let digits = password.digits().collect::<Vec<_>>();
+    let digits = Digits::decimal(password).collect::<Vec<_>>();
     is_increasing(&digits) && has_repeat(&digits, 2)
 }
 
 fn meets_criteria2(password: Value) -> bool {
-    let digits = password.digits().collect::<Vec<_>>();
+    let digits = Digits::decimal(password).collect::<Vec<_>>();
     is_increasing(&digits) && has_repeat_exact(&digits, 2)
 }
 
@@ -70,50 +72,6 @@ fn parse_input(input: &str) -> Result<(Value, Value)> {
     match nums.as_slice() {
         [n1, n2] => Ok((*n1, *n2)),
         _ => Err(()),
-    }
-}
-
-struct Digits {
-    n: Value,
-    divisor: Value,
-}
-
-impl Digits {
-    fn new(n: Value) -> Self {
-        let mut divisor = 1;
-        while n >= divisor * 10 {
-            divisor *= 10;
-        }
-
-        Digits {
-            n: n,
-            divisor: divisor,
-        }
-    }
-}
-
-impl Iterator for Digits {
-    type Item = u8;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.divisor == 0 {
-            None
-        } else {
-            let v = (self.n / self.divisor) as u8;
-            self.n %= self.divisor;
-            self.divisor /= 10;
-            Some(v)
-        }
-    }
-}
-
-trait ToDigits {
-    fn digits(&self) -> Digits;
-}
-
-impl ToDigits for Value {
-    fn digits(&self) -> Digits {
-        Digits::new(*self)
     }
 }
 
@@ -174,35 +132,9 @@ mod test {
     }
 
     #[test]
-    fn digits_normal() {
-        let num = 785;
-        let mut digits = Digits::new(num);
-        assert_eq!(digits.next(), Some(7));
-        assert_eq!(digits.next(), Some(8));
-        assert_eq!(digits.next(), Some(5));
-        assert_eq!(digits.next(), None);
-    }
-
-    #[test]
-    fn digits_single_digit() {
-        let num = 7;
-        let mut digits = Digits::new(num);
-        assert_eq!(digits.next(), Some(7));
-        assert_eq!(digits.next(), None);
-    }
-
-    #[test]
-    fn digits_zero() {
-        let num = 0;
-        let mut digits = Digits::new(num);
-        assert_eq!(digits.next(), Some(0));
-        assert_eq!(digits.next(), None);
-    }
-
-    #[test]
     fn meets_criteria_tests() {
-        assert!(meets_criteria(111111));
-        assert!(!meets_criteria(223450));
-        assert!(!meets_criteria(123789));
+        assert!(meets_criteria1(111111));
+        assert!(!meets_criteria1(223450));
+        assert!(!meets_criteria1(123789));
     }
 }

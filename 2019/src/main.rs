@@ -1,6 +1,7 @@
 use std::env;
 
 mod intcode;
+mod digits;
 
 mod day01;
 mod day02;
