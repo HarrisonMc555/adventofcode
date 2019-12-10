@@ -1,5 +1,6 @@
 use crate::util::digits::DigitsRev;
 use std::convert::TryFrom;
+use std::convert::TryInto;
 use std::ops;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -25,7 +26,7 @@ enum Going {
 // pub type Error = ();
 pub type Error = String;
 pub type Result<T> = std::result::Result<T, Error>;
-pub type Value = usize;
+pub type Value = i32;
 
 const OPCODE_ADD: u8 = 1;
 const OPCODE_MUL: u8 = 2;
@@ -91,7 +92,6 @@ impl IntCode {
         Ok(Product::new(self.memory, self.outputs))
     }
 
-    #[allow(dead_code)]
     pub fn with_inputs(mut self, mut inputs: Vec<Value>) -> Self {
         // We want inputs in reverse order so we can pop them off one by one
         inputs.reverse();
@@ -139,6 +139,7 @@ impl IntCode {
     fn op_input(&mut self, _modes: ParameterModes) -> Result<()> {
         let input = self.inputs.pop().ok_or("Ran out of inputs".to_string())?;
         let param_index = self.next_value()?;
+        let param_index = to_usize(param_index)?;
         let dest = self.get_mut(param_index)?;
         *dest = input;
         Ok(())
@@ -154,6 +155,7 @@ impl IntCode {
         let op1 = self.next_param(modes.get(0))?;
         let op2 = self.next_param(modes.get(1))?;
         let dest_index = self.next_value()?;
+        let dest_index = to_usize(dest_index)?;
         let dest = self.get_mut(dest_index)?;
         *dest = op(op1, op2);
         Ok(())
@@ -163,7 +165,7 @@ impl IntCode {
         let value = self.next_value()?;
         let value = match mode {
             ParameterMode::Position => self
-                .get(value)
+                .get(to_usize(value)?)
                 .map_err(|_| format!("Param index {} out of bound", value))?,
             ParameterMode::Immediate => value,
         };
@@ -225,6 +227,10 @@ where
         .get(index)
         .copied()
         .ok_or(format!("Index {} out of bounds", index))
+}
+
+fn to_usize(input: Value) -> Result<usize> {
+    input.try_into().map_err(|_| format!("Cannot convert {} to usize", input))
 }
 
 impl std::str::FromStr for IntCode {
