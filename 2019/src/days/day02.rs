@@ -1,6 +1,6 @@
-use crate::intcode::{IntCode, Result, Value, MAX_NOUN, MAX_VERB};
+use crate::util::intcode::{IntCode, Result, Value, MAX_NOUN, MAX_VERB};
 
-const INPUT: &str = include_str!("../static/day02.txt");
+const INPUT: &str = include_str!("../../static/day02.txt");
 
 const DEFAULT_NOUN: Value = 12;
 const DEFAULT_VERB: Value = 2;

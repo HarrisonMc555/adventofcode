@@ -1,13 +1,9 @@
 use std::env;
 
-mod intcode;
-mod digits;
+mod util;
+mod days;
 
-mod day01;
-mod day02;
-mod day03;
-mod day04;
-mod day05;
+use days::*;
 
 const DEFAULT_FN: fn() = day05::main;
 

@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::ops;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -27,6 +28,24 @@ const OPCODE_MUL: Value = 2;
 const OPCODE_INPUT: Value = 3;
 const OPCODE_OUTPUT: Value = 4;
 const OPCODE_HALT: Value = 99;
+
+enum OpCode {
+    Add,
+    Mul,
+    Input,
+    Output,
+    Halt,
+}
+
+enum ParameterMode {
+    Position,
+    Immediate,
+}
+
+struct Instruction {
+    opcode: OpCode,
+    parameter_mode: ParameterMode,
+}
 
 pub const MAX_NOUN: Value = 99;
 pub const MAX_VERB: Value = 99;
@@ -78,12 +97,15 @@ impl IntCode {
     }
 
     fn step(&mut self) -> Result<Going> {
+        // let value = self.next()?;
+        // let instruction = Instruction::from(value);
+        // instruction.run(&mut )
         let opcode = self.next()?;
         let _ = match opcode {
-            OPCODE_ADD => self.op_add()?,
-            OPCODE_MUL => self.op_mul()?,
-            OPCODE_INPUT => self.op_input()?,
-            OPCODE_OUTPUT => self.op_output()?,
+            OPCODE_ADD => self.op_add(),
+            OPCODE_MUL => self.op_mul(),
+            OPCODE_INPUT => self.op_input(),
+            OPCODE_OUTPUT => self.op_output(),
             OPCODE_HALT => return Ok(Going::Stop),
             _ => return Err(()),
         };
@@ -177,3 +199,11 @@ impl std::str::FromStr for IntCode {
         Ok(IntCode::new(vec))
     }
 }
+
+// impl TryFrom<Value> for Instruction {
+//     type Error = Error;
+
+//     fn try_from(value: Value) -> Result<Self> {
+        
+//     }
+// }

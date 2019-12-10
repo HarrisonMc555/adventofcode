@@ -1,6 +1,6 @@
-use crate::digits::Digits;
+use crate::util::digits::Digits;
 
-const INPUT: &str = include_str!("../static/day04.txt");
+const INPUT: &str = include_str!("../../static/day04.txt");
 
 type Result<T> = std::result::Result<T, ()>;
 type Value = u32;

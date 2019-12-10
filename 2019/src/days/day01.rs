@@ -1,7 +1,7 @@
 type Result<T> = std::result::Result<T, ()>;
 type Value = u32;
 
-const INPUT: &str = include_str!("../static/day01.txt");
+const INPUT: &str = include_str!("../../static/day01.txt");
 
 pub fn main() {
     let answer1 = solve1(INPUT).unwrap();
