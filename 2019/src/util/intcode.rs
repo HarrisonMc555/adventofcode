@@ -1,3 +1,4 @@
+use crate::util::digits::DigitsRev;
 use std::convert::TryFrom;
 use std::ops;
 
@@ -9,26 +10,30 @@ pub struct IntCode {
     outputs: Vec<Value>,
 }
 
+#[derive(Debug)]
 pub struct Product {
     memory: Vec<Value>,
     outputs: Vec<Value>,
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum Going {
     Continue,
     Stop,
 }
 
-pub type Error = ();
+// pub type Error = ();
+pub type Error = String;
 pub type Result<T> = std::result::Result<T, Error>;
 pub type Value = usize;
 
-const OPCODE_ADD: Value = 1;
-const OPCODE_MUL: Value = 2;
-const OPCODE_INPUT: Value = 3;
-const OPCODE_OUTPUT: Value = 4;
-const OPCODE_HALT: Value = 99;
+const OPCODE_ADD: u8 = 1;
+const OPCODE_MUL: u8 = 2;
+const OPCODE_INPUT: u8 = 3;
+const OPCODE_OUTPUT: u8 = 4;
+const OPCODE_HALT: u8 = 99;
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum OpCode {
     Add,
     Mul,
@@ -37,14 +42,22 @@ enum OpCode {
     Halt,
 }
 
+const MODE_POSITION: u8 = 0;
+const MODE_IMMEDIATE: u8 = 1;
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum ParameterMode {
     Position,
     Immediate,
 }
 
+#[derive(Debug)]
+struct ParameterModes(Vec<ParameterMode>);
+
+#[derive(Debug)]
 struct Instruction {
     opcode: OpCode,
-    parameter_mode: ParameterMode,
+    parameter_modes: ParameterModes,
 }
 
 pub const MAX_NOUN: Value = 99;
@@ -78,6 +91,7 @@ impl IntCode {
         Ok(Product::new(self.memory, self.outputs))
     }
 
+    #[allow(dead_code)]
     pub fn with_inputs(mut self, mut inputs: Vec<Value>) -> Self {
         // We want inputs in reverse order so we can pop them off one by one
         inputs.reverse();
@@ -97,56 +111,66 @@ impl IntCode {
     }
 
     fn step(&mut self) -> Result<Going> {
-        // let value = self.next()?;
-        // let instruction = Instruction::from(value);
-        // instruction.run(&mut )
-        let opcode = self.next()?;
-        let _ = match opcode {
-            OPCODE_ADD => self.op_add(),
-            OPCODE_MUL => self.op_mul(),
-            OPCODE_INPUT => self.op_input(),
-            OPCODE_OUTPUT => self.op_output(),
-            OPCODE_HALT => return Ok(Going::Stop),
-            _ => return Err(()),
+        let value = self.next_value()?;
+        let instruction = Instruction::try_from(value)?;
+        self.execute(instruction)
+    }
+
+    fn execute(&mut self, instruction: Instruction) -> Result<Going> {
+        let modes = instruction.parameter_modes;
+        let result = match instruction.opcode {
+            OpCode::Add => self.op_add(modes),
+            OpCode::Mul => self.op_mul(modes),
+            OpCode::Input => self.op_input(modes),
+            OpCode::Output => self.op_output(modes),
+            OpCode::Halt => return Ok(Going::Stop),
         };
-        Ok(Going::Continue)
+        result.map(|()| Going::Continue)
     }
 
-    fn op_add(&mut self) -> Result<()> {
-        self.binary_op(ops::Add::add)
+    fn op_add(&mut self, modes: ParameterModes) -> Result<()> {
+        self.binary_op(modes, ops::Add::add)
     }
 
-    fn op_mul(&mut self) -> Result<()> {
-        self.binary_op(ops::Mul::mul)
+    fn op_mul(&mut self, modes: ParameterModes) -> Result<()> {
+        self.binary_op(modes, ops::Mul::mul)
     }
 
-    fn op_input(&mut self) -> Result<()> {
-        let input = self.inputs.pop().ok_or(())?;
-        let param_index = self.next()?;
+    fn op_input(&mut self, _modes: ParameterModes) -> Result<()> {
+        let input = self.inputs.pop().ok_or("Ran out of inputs".to_string())?;
+        let param_index = self.next_value()?;
         let dest = self.get_mut(param_index)?;
         *dest = input;
         Ok(())
     }
 
-    fn op_output(&mut self) -> Result<()> {
-        let param_index = self.next()?;
-        let value = self.get(param_index)?;
+    fn op_output(&mut self, modes: ParameterModes) -> Result<()> {
+        let value = self.next_param(modes.get(0))?;
         self.outputs.push(value);
         Ok(())
     }
 
-    fn binary_op(&mut self, op: BinaryOp) -> Result<()> {
-        let op1_index = self.next()?;
-        let op2_index = self.next()?;
-        let dest_index = self.next()?;
-        let op1 = self.get(op1_index)?;
-        let op2 = self.get(op2_index)?;
+    fn binary_op(&mut self, modes: ParameterModes, op: BinaryOp) -> Result<()> {
+        let op1 = self.next_param(modes.get(0))?;
+        let op2 = self.next_param(modes.get(1))?;
+        let dest_index = self.next_value()?;
         let dest = self.get_mut(dest_index)?;
         *dest = op(op1, op2);
         Ok(())
     }
 
-    fn next(&mut self) -> Result<Value> {
+    fn next_param(&mut self, mode: ParameterMode) -> Result<Value> {
+        let value = self.next_value()?;
+        let value = match mode {
+            ParameterMode::Position => self
+                .get(value)
+                .map_err(|_| format!("Param index {} out of bound", value))?,
+            ParameterMode::Immediate => value,
+        };
+        Ok(value)
+    }
+
+    fn next_value(&mut self) -> Result<Value> {
         let value = self.get(self.index)?;
         self.index += 1;
         Ok(value)
@@ -157,7 +181,10 @@ impl IntCode {
     }
 
     fn get_mut(&mut self, index: usize) -> Result<&mut Value> {
-        self.memory.get_mut(index).ok_or(())
+        // self.memory.get_mut(index).ok_or(())
+        self.memory
+            .get_mut(index)
+            .ok_or("index out of bounds".to_string())
     }
 }
 
@@ -166,10 +193,12 @@ impl Product {
         Product { memory, outputs }
     }
 
+    #[allow(dead_code)]
     pub fn memory(&self) -> &[Value] {
         &self.memory
     }
 
+    #[allow(dead_code)]
     pub fn outputs(&self) -> &[Value] {
         &self.outputs
     }
@@ -179,11 +208,23 @@ impl Product {
     }
 }
 
+impl ParameterModes {
+    fn get(&self, index: usize) -> ParameterMode {
+        self.0
+            .get(index)
+            .copied()
+            .unwrap_or(ParameterMode::Position)
+    }
+}
+
 fn get<T>(slice: &[T], index: usize) -> Result<T>
 where
     T: Copy,
 {
-    slice.get(index).copied().ok_or(())
+    slice
+        .get(index)
+        .copied()
+        .ok_or(format!("Index {} out of bounds", index))
 }
 
 impl std::str::FromStr for IntCode {
@@ -195,15 +236,55 @@ impl std::str::FromStr for IntCode {
             .split(',')
             .map(str::parse)
             .collect::<std::result::Result<_, _>>()
-            .map_err(|_| ())?;
+            .map_err(|e| format!("Invalid operation: {:?}", e))?;
         Ok(IntCode::new(vec))
     }
 }
 
-// impl TryFrom<Value> for Instruction {
-//     type Error = Error;
+impl TryFrom<Value> for Instruction {
+    type Error = Error;
 
-//     fn try_from(value: Value) -> Result<Self> {
-        
-//     }
-// }
+    fn try_from(value: Value) -> Result<Self> {
+        let mut digits = DigitsRev::decimal(value);
+        // let ones = digits.next().ok_or(())?;
+        let ones = digits.next().ok_or("No opcode found".to_string())?;
+        let tens = digits.next().unwrap_or(0);
+        let opcode = tens * 10 + ones;
+        let parameter_modes = digits.map(ParameterMode::try_from).collect::<Result<_>>()?;
+        Ok(Instruction {
+            opcode: OpCode::try_from(opcode)?,
+            parameter_modes: ParameterModes(parameter_modes),
+        })
+    }
+}
+
+impl TryFrom<u8> for OpCode {
+    type Error = Error;
+
+    fn try_from(value: u8) -> Result<Self> {
+        let opcode = match value {
+            OPCODE_ADD => OpCode::Add,
+            OPCODE_MUL => OpCode::Mul,
+            OPCODE_INPUT => OpCode::Input,
+            OPCODE_OUTPUT => OpCode::Output,
+            OPCODE_HALT => OpCode::Halt,
+            _ => return Err(format!("Invalid opcode {}", value)),
+            // _ => return Err(()),
+        };
+        Ok(opcode)
+    }
+}
+
+impl TryFrom<u8> for ParameterMode {
+    type Error = Error;
+
+    fn try_from(value: u8) -> Result<Self> {
+        let mode = match value {
+            MODE_POSITION => ParameterMode::Position,
+            MODE_IMMEDIATE => ParameterMode::Immediate,
+            _ => return Err(format!("Invalid opcode {}", value)),
+            // _ => return Err(()),
+        };
+        Ok(mode)
+    }
+}

@@ -31,14 +31,17 @@ where
         Self::new(n, 10)
     }
 
+    #[allow(dead_code)]
     pub fn binary(n: T) -> Self {
         Self::new(n, 2)
     }
 
+    #[allow(dead_code)]
     pub fn octal(n: T) -> Self {
         Self::new(n, 8)
     }
 
+    #[allow(dead_code)]
     pub fn hex(n: T) -> Self {
         Self::new(n, 16)
     }
@@ -61,14 +64,17 @@ where
         Self::new(n, 10)
     }
 
+    #[allow(dead_code)]
     pub fn binary(n: T) -> Self {
         Self::new(n, 2)
     }
 
+    #[allow(dead_code)]
     pub fn octal(n: T) -> Self {
         Self::new(n, 8)
     }
 
+    #[allow(dead_code)]
     pub fn hex(n: T) -> Self {
         Self::new(n, 16)
     }

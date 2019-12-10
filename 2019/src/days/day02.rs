@@ -1,5 +1,6 @@
-use crate::util::intcode::{IntCode, Result, Value, MAX_NOUN, MAX_VERB};
+use crate::util::intcode::{IntCode, Product, Result, Value, MAX_NOUN, MAX_VERB};
 
+// const INPUT: &str = "1,1,1,4,99,5,6,0,99";
 const INPUT: &str = include_str!("../../static/day02.txt");
 
 const DEFAULT_NOUN: Value = 12;
@@ -15,8 +16,6 @@ pub fn main() {
 }
 
 fn solve1(input: &str, noun: Value, verb: Value) -> Result<Value> {
-    // let program = parse_input(input)?;
-    // run_altered(program, noun, verb)
     IntCode::from_str(input)?.altered(noun, verb)?.run()?.get(0)
 }
 
@@ -24,10 +23,12 @@ fn solve2(input: &str, output_goal: Value) -> Result<Value> {
     let program = IntCode::from_str(input)?;
     for noun in 0..=MAX_NOUN {
         for verb in 0..=MAX_VERB {
-            if program.clone().altered(noun, verb)?.run()?.get(0) == Ok(output_goal) {
+            let result: Result<Product> = program.clone().altered(noun, verb)?.run();
+            if result.and_then(|product| product.get(0)) == Ok(output_goal) {
                 return Ok(100 * noun + verb);
             }
         }
     }
-    Err(())
+    // Err(())
+    Err("No solution found for solve2".to_string())
 }
