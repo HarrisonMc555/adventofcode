@@ -1,16 +1,30 @@
 use crate::util::intcode::{IntCode, Result, Value};
 
-const INPUT: &str = include_str!("../../static/day05.txt");
-const PROGRAM_INPUT: [Value; 1] = [1];
+// const INPUT: &str = include_str!("../../static/day05.txt");
+const INPUT: &str = "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99";
+const PROGRAM_INPUT1: [Value; 1] = [1];
+const PROGRAM_INPUT2: [Value; 1] = [5];
 
 pub fn main() {
-    let answer1 = solve1(INPUT).unwrap();
-    println!("{}", answer1);
+    // let answer1 = solve1(INPUT).unwrap();
+    let answer2 = solve2(INPUT);
+    // println!("{}", answer1);
+    println!("{:?}", answer2);
 }
 
 fn solve1(input: &str) -> Result<Value> {
     IntCode::from_str(input)?
-        .with_inputs(PROGRAM_INPUT.to_vec())
+        .with_inputs(PROGRAM_INPUT1.to_vec())
+        .run()?
+        .outputs()
+        .first()
+        .copied()
+        .ok_or("No outputs".to_string())
+}
+
+fn solve2(input: &str) -> Result<Value> {
+    IntCode::from_str(input)?
+        .with_inputs(PROGRAM_INPUT2.to_vec())
         .run()?
         .outputs()
         .first()

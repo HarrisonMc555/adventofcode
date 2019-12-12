@@ -32,6 +32,10 @@ const OPCODE_ADD: u8 = 1;
 const OPCODE_MUL: u8 = 2;
 const OPCODE_INPUT: u8 = 3;
 const OPCODE_OUTPUT: u8 = 4;
+const OPCODE_JUMP_IF_TRUE: u8 = 5;
+const OPCODE_JUMP_IF_FALSE: u8 = 6;
+const OPCODE_LESS_THAN: u8 = 7;
+const OPCODE_EQUALS: u8 = 8;
 const OPCODE_HALT: u8 = 99;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -40,6 +44,10 @@ enum OpCode {
     Mul,
     Input,
     Output,
+    JumpIfTrue,
+    JumpIfFalse,
+    LessThan,
+    Equals,
     Halt,
 }
 
@@ -65,6 +73,7 @@ pub const MAX_NOUN: Value = 99;
 pub const MAX_VERB: Value = 99;
 
 type BinaryOp = fn(Value, Value) -> Value;
+type CmpOp = fn(Value, Value) -> bool;
 
 impl IntCode {
     pub fn from_str(s: &str) -> Result<Self> {
@@ -123,6 +132,10 @@ impl IntCode {
             OpCode::Mul => self.op_mul(modes),
             OpCode::Input => self.op_input(modes),
             OpCode::Output => self.op_output(modes),
+            OpCode::JumpIfTrue => self.op_jump_if_true(modes),
+            OpCode::JumpIfFalse => self.op_jump_if_false(modes),
+            OpCode::LessThan => self.op_less_than(modes),
+            OpCode::Equals => self.op_equals(modes),
             OpCode::Halt => return Ok(Going::Stop),
         };
         result.map(|()| Going::Continue)
@@ -151,6 +164,36 @@ impl IntCode {
         Ok(())
     }
 
+    fn op_jump_if_true(&mut self, modes: ParameterModes) -> Result<()> {
+        let value = self.next_param(modes.get(0))?;
+        if value != 0 {
+            let _ = self.do_jump(modes.get(1))?;
+        }
+        Ok(())
+    }
+
+    fn op_jump_if_false(&mut self, modes: ParameterModes) -> Result<()> {
+        let value = self.next_param(modes.get(0))?;
+        if value == 0 {
+            let _ = self.do_jump(modes.get(1))?;
+        }
+        Ok(())
+    }
+
+    fn op_less_than(&mut self, modes: ParameterModes) -> Result<()> {
+        self.cmp_op(modes, |x, y| x < y)
+    }
+
+    fn op_equals(&mut self, modes: ParameterModes) -> Result<()> {
+        self.cmp_op(modes, |x, y| x == y)
+    }
+
+    fn do_jump(&mut self, mode: ParameterMode) -> Result<()> {
+        let dest_index = self.next_param(mode)?;
+        self.index = to_usize(dest_index)?;
+        Ok(())
+    }
+
     fn binary_op(&mut self, modes: ParameterModes, op: BinaryOp) -> Result<()> {
         let op1 = self.next_param(modes.get(0))?;
         let op2 = self.next_param(modes.get(1))?;
@@ -158,6 +201,17 @@ impl IntCode {
         let dest_index = to_usize(dest_index)?;
         let dest = self.get_mut(dest_index)?;
         *dest = op(op1, op2);
+        Ok(())
+    }
+
+    fn cmp_op(&mut self, modes: ParameterModes, op: CmpOp) -> Result<()> {
+        let op1 = self.next_param(modes.get(0))?;
+        let op2 = self.next_param(modes.get(1))?;
+        let dest_index = self.next_value()?;
+        let dest_index = to_usize(dest_index)?;
+        let dest = self.get_mut(dest_index)?;
+        let value = if op(op1, op2) { 1 } else { 0 };
+        *dest = value;
         Ok(())
     }
 
@@ -230,7 +284,9 @@ where
 }
 
 fn to_usize(input: Value) -> Result<usize> {
-    input.try_into().map_err(|_| format!("Cannot convert {} to usize", input))
+    input
+        .try_into()
+        .map_err(|_| format!("Cannot convert {} to usize", input))
 }
 
 impl std::str::FromStr for IntCode {
@@ -273,6 +329,10 @@ impl TryFrom<u8> for OpCode {
             OPCODE_MUL => OpCode::Mul,
             OPCODE_INPUT => OpCode::Input,
             OPCODE_OUTPUT => OpCode::Output,
+            OPCODE_JUMP_IF_TRUE => OpCode::JumpIfTrue,
+            OPCODE_JUMP_IF_FALSE => OpCode::JumpIfFalse,
+            OPCODE_LESS_THAN => OpCode::LessThan,
+            OPCODE_EQUALS => OpCode::Equals,
             OPCODE_HALT => OpCode::Halt,
             _ => return Err(format!("Invalid opcode {}", value)),
             // _ => return Err(()),
