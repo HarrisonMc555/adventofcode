@@ -3,6 +3,21 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::ops;
 
+const DEBUG: bool = false;
+
+macro_rules! debug {
+    ( $e:expr ) => {
+        if DEBUG {
+            dbg!($e);
+        }
+    };
+    ( $($e:expr),* ) => {
+        if DEBUG {
+            dbg!(( $($e),* ));
+        }
+    };
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct IntCode {
     memory: Vec<Value>,
@@ -90,12 +105,19 @@ impl IntCode {
     }
 
     pub fn run(mut self) -> Result<Product> {
+        debug!("running");
         loop {
             match self.step()? {
-                Going::Continue => (),
-                Going::Stop => break,
+                // Going::Continue => (),
+                Going::Continue => debug!("Continuing"),
+                // Going::Stop => break,
+                Going::Stop => {
+                    debug!("Stopping");
+                    break;
+                }
             }
         }
+        debug!("done running");
         // Outputs are currently in reverse order, un-reverse them
         self.outputs.reverse();
         Ok(Product::new(self.memory, self.outputs))
@@ -120,8 +142,11 @@ impl IntCode {
     }
 
     fn step(&mut self) -> Result<Going> {
+        debug!(&self);
         let value = self.next_value()?;
+        debug!(&value);
         let instruction = Instruction::try_from(value)?;
+        debug!(&instruction);
         self.execute(instruction)
     }
 
@@ -168,6 +193,9 @@ impl IntCode {
         let value = self.next_param(modes.get(0))?;
         if value != 0 {
             let _ = self.do_jump(modes.get(1))?;
+        } else {
+            // Increment the index
+            let _ = self.next_value()?;
         }
         Ok(())
     }
@@ -176,6 +204,9 @@ impl IntCode {
         let value = self.next_param(modes.get(0))?;
         if value == 0 {
             let _ = self.do_jump(modes.get(1))?;
+        } else {
+            // Increment the index
+            let _ = self.next_value()?;
         }
         Ok(())
     }
