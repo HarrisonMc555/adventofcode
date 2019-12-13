@@ -6,17 +6,6 @@ use std::ops;
 
 const DEBUG: bool = false;
 
-// macro_rules! vecdeque {
-//     ( $( $e:expr, )* ) => {
-//         let deque = VecDeque::new();
-//         $( deque.push_back($e) )*;
-//         deque
-//     };
-//     ( $( $e:expr ),* ) => {
-//         vecdeque![$( $e, )*]
-//     };
-// }
-
 macro_rules! debug {
     ( $e:expr ) => {
         if DEBUG {
@@ -56,12 +45,11 @@ enum Going {
 }
 
 #[derive(Debug)]
-enum Stopped {
+pub enum Stopped {
     NeedInput(IntCode),
     Complete(Product),
 }
 
-// pub type Error = ();
 pub type Error = String;
 pub type Result<T> = std::result::Result<T, Error>;
 pub type Value = i32;
@@ -132,12 +120,10 @@ impl IntCode {
         debug!("running");
         loop {
             match self.step()? {
-                // Going::Continue => (),
                 Going::Continue => {
                     debug!("Continuing");
                     ()
                 }
-                // Going::Stop => break,
                 Going::Stop => {
                     debug!("Stopping");
                     break;
@@ -153,12 +139,10 @@ impl IntCode {
         debug!("running blocking");
         loop {
             match self.step()? {
-                // Going::Continue => (),
                 Going::Continue => {
                     debug!("Continuing");
                     ()
                 }
-                // Going::Stop => break,
                 Going::Stop => {
                     debug!("Stopping, complete");
                     return Ok(Stopped::Complete(Product::new(self.memory, self.outputs)));
@@ -176,6 +160,16 @@ impl IntCode {
         self
     }
 
+    pub fn push_input(&mut self, input: Value) {
+        self.inputs.push_back(input);
+    }
+
+    pub fn pop_output(&mut self) -> Result<Value> {
+        self.outputs
+            .pop_front()
+            .ok_or_else(|| "No outputs".to_string())
+    }
+
     pub fn altered(mut self, noun: Value, verb: Value) -> Result<Self> {
         self.alter(noun, verb)?;
         Ok(self)
@@ -188,7 +182,6 @@ impl IntCode {
     }
 
     fn step(&mut self) -> Result<Going> {
-        debug!(&self);
         let value = self.next_value()?;
         debug!(&value);
         let instruction = Instruction::try_from(value)?;
@@ -272,9 +265,8 @@ impl IntCode {
     }
 
     fn binary_op(&mut self, modes: ParameterModes, op: BinaryOp) -> Result<Going> {
-        let op1 = self.next_param(modes.get(0))?;
-        let op2 = self.next_param(modes.get(1))?;
-        let dest_index = self.next_value()?;
+        let (op1, op2, dest_index) =
+            self.get_params3(modes.get(0), modes.get(1), ParameterMode::Immediate)?;
         let dest_index = to_usize(dest_index)?;
         let dest = self.get_mut(dest_index)?;
         *dest = op(op1, op2);
@@ -282,9 +274,8 @@ impl IntCode {
     }
 
     fn cmp_op(&mut self, modes: ParameterModes, op: CmpOp) -> Result<Going> {
-        let op1 = self.next_param(modes.get(0))?;
-        let op2 = self.next_param(modes.get(1))?;
-        let dest_index = self.next_value()?;
+        let (op1, op2, dest_index) =
+            self.get_params3(modes.get(0), modes.get(1), ParameterMode::Immediate)?;
         let dest_index = to_usize(dest_index)?;
         let dest = self.get_mut(dest_index)?;
         let value = if op(op1, op2) { 1 } else { 0 };
@@ -319,6 +310,7 @@ impl IntCode {
         Ok((param1, param2, param3))
     }
 
+    #[allow(dead_code)]
     fn get_params4(
         &mut self,
         mode1: ParameterMode,
@@ -355,10 +347,25 @@ impl IntCode {
     }
 
     fn get_mut(&mut self, index: usize) -> Result<&mut Value> {
-        // self.memory.get_mut(index).ok_or(())
         self.memory
             .get_mut(index)
             .ok_or("index out of bounds".to_string())
+    }
+
+    #[allow(dead_code)]
+    fn debug_print(&self) {
+        if !DEBUG {
+            return;
+        }
+        eprintln!("memory = [");
+        for (i, v) in self.memory.iter().enumerate() {
+            let cur_marker = if i == self.index { " <--" } else { "" };
+            eprintln!("\t[{:>3}] = {}{}", i, v, cur_marker);
+        }
+        eprintln!("]");
+        eprintln!("inputs: {:?}", self.inputs);
+        eprintln!("outputs: {:?}", self.outputs);
+        eprintln!();
     }
 }
 
@@ -384,14 +391,19 @@ impl Product {
         get(&self.memory, index)
     }
 
+    #[allow(dead_code)]
     pub fn first_output(&self) -> Result<Value> {
-        eprintln!("outputs: {:?}", self.outputs);
-        self.outputs.first().copied().ok_or_else(|| "No outputs".to_string())
+        self.outputs
+            .first()
+            .copied()
+            .ok_or_else(|| "No outputs".to_string())
     }
 
     pub fn last_output(&self) -> Result<Value> {
-        eprintln!("outputs: {:?}", self.outputs);
-        self.outputs.last().copied().ok_or_else(|| "No outputs".to_string())
+        self.outputs
+            .last()
+            .copied()
+            .ok_or_else(|| "No outputs".to_string())
     }
 }
 
@@ -439,7 +451,6 @@ impl TryFrom<Value> for Instruction {
 
     fn try_from(value: Value) -> Result<Self> {
         let mut digits = DigitsRev::decimal(value);
-        // let ones = digits.next().ok_or(())?;
         let ones = digits.next().ok_or("No opcode found".to_string())?;
         let tens = digits.next().unwrap_or(0);
         let opcode = tens * 10 + ones;
@@ -466,7 +477,6 @@ impl TryFrom<u8> for OpCode {
             OPCODE_EQUALS => OpCode::Equals,
             OPCODE_HALT => OpCode::Halt,
             _ => return Err(format!("Invalid opcode {}", value)),
-            // _ => return Err(()),
         };
         Ok(opcode)
     }
@@ -480,7 +490,6 @@ impl TryFrom<u8> for ParameterMode {
             MODE_POSITION => ParameterMode::Position,
             MODE_IMMEDIATE => ParameterMode::Immediate,
             _ => return Err(format!("Invalid opcode {}", value)),
-            // _ => return Err(()),
         };
         Ok(mode)
     }

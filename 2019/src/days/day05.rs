@@ -36,11 +36,8 @@ mod test {
         let output = IntCode::from_str("3,0,4,0,99")?
             .with_inputs(vec![input])
             .run()?
-            .outputs()
-            .last()
-            .copied()
-            .ok_or("No outputs".to_string());
-        assert_eq!(output, Ok(input));
+            .last_output()?;
+        assert_eq!(output, input);
         Ok(())
     }
 
@@ -58,26 +55,17 @@ mod test {
         let output_eq_target = IntCode::from_str(program_str)?
             .with_inputs(vec![target])
             .run()?
-            .outputs()
-            .first()
-            .copied()
-            .ok_or("No outputs")?;
+            .last_output()?;
         assert_eq!(output_eq_target, 1);
         let output_not_eq_target1 = IntCode::from_str(program_str)?
             .with_inputs(vec![target + 1])
             .run()?
-            .outputs()
-            .first()
-            .copied()
-            .ok_or("No outputs")?;
+            .last_output()?;
         assert_eq!(output_not_eq_target1, 0);
         let output_not_eq_target2 = IntCode::from_str(program_str)?
             .with_inputs(vec![target - 1])
             .run()?
-            .outputs()
-            .first()
-            .copied()
-            .ok_or("No outputs")?;
+            .last_output()?;
         assert_eq!(output_not_eq_target2, 0);
         Ok(())
     }
@@ -89,26 +77,17 @@ mod test {
         let output_eq_target = IntCode::from_str(program_str)?
             .with_inputs(vec![target])
             .run()?
-            .outputs()
-            .first()
-            .copied()
-            .ok_or("No outputs")?;
+            .last_output()?;
         assert_eq!(output_eq_target, 0);
         let output_less_than_target = IntCode::from_str(program_str)?
             .with_inputs(vec![target - 1])
             .run()?
-            .outputs()
-            .first()
-            .copied()
-            .ok_or("No outputs")?;
+            .last_output()?;
         assert_eq!(output_less_than_target, 1);
         let output_greater_than_target = IntCode::from_str(program_str)?
             .with_inputs(vec![target + 1])
             .run()?
-            .outputs()
-            .first()
-            .copied()
-            .ok_or("No outputs")?;
+            .last_output()?;
         assert_eq!(output_greater_than_target, 0);
         Ok(())
     }
@@ -120,26 +99,17 @@ mod test {
         let output_eq_target = IntCode::from_str(program_str)?
             .with_inputs(vec![target])
             .run()?
-            .outputs()
-            .first()
-            .copied()
-            .ok_or("No outputs")?;
+            .last_output()?;
         assert_eq!(output_eq_target, 1);
         let output_not_eq_target1 = IntCode::from_str(program_str)?
             .with_inputs(vec![target + 1])
             .run()?
-            .outputs()
-            .first()
-            .copied()
-            .ok_or("No outputs")?;
+            .last_output()?;
         assert_eq!(output_not_eq_target1, 0);
         let output_not_eq_target2 = IntCode::from_str(program_str)?
             .with_inputs(vec![target - 1])
             .run()?
-            .outputs()
-            .first()
-            .copied()
-            .ok_or("No outputs")?;
+            .last_output()?;
         assert_eq!(output_not_eq_target2, 0);
         Ok(())
     }
@@ -151,26 +121,17 @@ mod test {
         let output_eq_target = IntCode::from_str(program_str)?
             .with_inputs(vec![target])
             .run()?
-            .outputs()
-            .first()
-            .copied()
-            .ok_or("No outputs")?;
+            .last_output()?;
         assert_eq!(output_eq_target, 0);
         let output_less_than_target = IntCode::from_str(program_str)?
             .with_inputs(vec![target - 1])
             .run()?
-            .outputs()
-            .first()
-            .copied()
-            .ok_or("No outputs")?;
+            .last_output()?;
         assert_eq!(output_less_than_target, 1);
         let output_greater_than_target = IntCode::from_str(program_str)?
             .with_inputs(vec![target + 1])
             .run()?
-            .outputs()
-            .first()
-            .copied()
-            .ok_or("No outputs")?;
+            .last_output()?;
         assert_eq!(output_greater_than_target, 0);
         Ok(())
     }
@@ -182,26 +143,17 @@ mod test {
         let output_eq_target = IntCode::from_str(program_str)?
             .with_inputs(vec![target])
             .run()?
-            .outputs()
-            .first()
-            .copied()
-            .ok_or("No outputs")?;
+            .last_output()?;
         assert_eq!(output_eq_target, 0);
         let output_not_eq_target1 = IntCode::from_str(program_str)?
             .with_inputs(vec![target + 1])
             .run()?
-            .outputs()
-            .first()
-            .copied()
-            .ok_or("No outputs")?;
+            .last_output()?;
         assert_eq!(output_not_eq_target1, 1);
         let output_not_eq_target2 = IntCode::from_str(program_str)?
             .with_inputs(vec![target + 7])
             .run()?
-            .outputs()
-            .first()
-            .copied()
-            .ok_or("No outputs")?;
+            .last_output()?;
         assert_eq!(output_not_eq_target2, 1);
         Ok(())
     }

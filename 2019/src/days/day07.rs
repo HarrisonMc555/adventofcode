@@ -1,4 +1,5 @@
-use crate::util::intcode::{IntCode, Result, Value};
+use crate::util::intcode::{IntCode, Result, Stopped, Value};
+use std::collections::VecDeque;
 
 const INPUT: &str = include_str!("../../static/day07.txt");
 const NUM_AMPLIFIERS: Value = 5;
@@ -6,9 +7,9 @@ const STARTING_INPUT_SIGNAL: Value = 0;
 
 pub fn main() {
     let answer1 = solve1(INPUT);
-    // let answer2 = solve2(INPUT).unwrap();
+    let answer2 = solve2(INPUT);
     println!("{:?}", answer1);
-    // println!("{}", answer2);
+    println!("{:?}", answer2);
 }
 
 fn solve1(input: &str) -> Result<Value> {
@@ -17,6 +18,16 @@ fn solve1(input: &str) -> Result<Value> {
     permutations(&all_phase_settings)
         .into_iter()
         .flat_map(|phase_settings| run_amplifiers(program.clone(), &phase_settings).ok())
+        .max()
+        .ok_or("No successful runs".to_string())
+}
+
+fn solve2(input: &str) -> Result<Value> {
+    let program = IntCode::from_str(input)?;
+    let all_phase_settings = (5..=9).collect::<Vec<_>>();
+    permutations(&all_phase_settings)
+        .into_iter()
+        .flat_map(|phase_settings| run_amplifiers_feedback(program.clone(), &phase_settings).ok())
         .max()
         .ok_or("No successful runs".to_string())
 }
@@ -34,6 +45,46 @@ fn run_amplifier(program: IntCode, phase_setting: Value, input_signal: Value) ->
         .with_inputs(vec![phase_setting, input_signal])
         .run()?
         .last_output()
+}
+
+fn run_amplifiers_feedback(program: IntCode, phase_settings: &[Value]) -> Result<Value> {
+    let mut programs = phase_settings
+        .iter()
+        .enumerate()
+        .map(|(i, &phase_setting)| (i, program.clone().with_inputs(vec![phase_setting])))
+        .collect::<VecDeque<_>>();
+    let mut input_signal = STARTING_INPUT_SIGNAL;
+    let last_amplifier_index = programs.len() - 1;
+    let mut recent_last_amplifier_output: Option<Value> = None;
+    loop {
+        let (i, program) = match programs.pop_front() {
+            Some(some) => some,
+            None => {
+                return recent_last_amplifier_output
+                    .ok_or_else(|| "Last amplifier never produced output".to_string())
+            }
+        };
+        let output_signal = match run_amplifier_til_input(program, input_signal)? {
+            Stopped::NeedInput(mut program) => {
+                let output_signal = program.pop_output();
+                programs.push_back((i, program));
+                output_signal?
+            }
+            Stopped::Complete(product) => {
+                // Don't push back on stack, it's done
+                product.last_output()?
+            }
+        };
+        input_signal = output_signal;
+        if i == last_amplifier_index {
+            recent_last_amplifier_output = Some(output_signal);
+        }
+    }
+}
+
+fn run_amplifier_til_input(mut program: IntCode, input_signal: Value) -> Result<Stopped> {
+    program.push_input(input_signal);
+    program.run_blocking_input()
 }
 
 fn permutations<T>(arr: &[T]) -> Vec<Vec<T>>
@@ -101,6 +152,34 @@ mod test {
     }
 
     #[test]
+    fn max_signal_feedback1() -> Result<()> {
+        let input =
+            "3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,4,27,1001,28,-1,28,1005,28,6,99,0,0,5";
+        let phase_settings = [9, 8, 7, 6, 5];
+        let output_signal = 139629729;
+        test_amplifiers_feedback(input, &phase_settings, output_signal)
+    }
+
+    #[test]
+    fn max_signal_feedback2() -> Result<()> {
+        let input = "3,52,1001,52,-5,52,3,53,1,52,56,54,1007,54,5,55,1005,55,26,1001,54,-5,54,1105,1,12,1,53,54,53,1008,54,0,55,1001,55,1,55,2,53,55,53,4,53,1001,56,-1,56,1005,56,6,99,0,0,0,0,10";
+        let phase_settings = [9, 7, 8, 5, 6];
+        let output_signal = 18216;
+        test_amplifiers_feedback(input, &phase_settings, output_signal)
+    }
+
+    fn test_amplifiers_feedback(
+        input: &str,
+        phase_settings: &[Value],
+        expected_signal: Value,
+    ) -> Result<()> {
+        let program = IntCode::from_str(input)?;
+        let actual_signal = run_amplifiers_feedback(program, &phase_settings)?;
+        assert_eq!(actual_signal, expected_signal);
+        Ok(())
+    }
+
+    #[test]
     fn test_permutations1() {
         assert_eq!(permutations(&[1]), vec![vec![1]]);
     }
@@ -135,8 +214,8 @@ mod test {
         assert_eq!(solve1(INPUT), Ok(38500));
     }
 
-    // #[test]
-    // fn answer01b() {
-    //     assert_eq!(solve2(INPUT), Ok(3188550));
-    // }
+    #[test]
+    fn answer01b() {
+        assert_eq!(solve2(INPUT), Ok(33660560));
+    }
 }
