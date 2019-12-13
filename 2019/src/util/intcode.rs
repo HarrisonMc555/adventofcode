@@ -1,19 +1,35 @@
 use crate::util::digits::DigitsRev;
+use std::collections::VecDeque;
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::ops;
 
 const DEBUG: bool = false;
 
+// macro_rules! vecdeque {
+//     ( $( $e:expr, )* ) => {
+//         let deque = VecDeque::new();
+//         $( deque.push_back($e) )*;
+//         deque
+//     };
+//     ( $( $e:expr ),* ) => {
+//         vecdeque![$( $e, )*]
+//     };
+// }
+
 macro_rules! debug {
     ( $e:expr ) => {
         if DEBUG {
-            dbg!($e);
+            dbg!($e)
+        } else {
+            $e
         }
     };
     ( $($e:expr),* ) => {
         if DEBUG {
-            dbg!(( $($e),* ));
+            dbg!(( $(&$e),* ))
+        } else {
+            ( $(&$e),* )
         }
     };
 }
@@ -22,8 +38,8 @@ macro_rules! debug {
 pub struct IntCode {
     memory: Vec<Value>,
     index: usize,
-    inputs: Vec<Value>,
-    outputs: Vec<Value>,
+    inputs: VecDeque<Value>,
+    outputs: VecDeque<Value>,
 }
 
 #[derive(Debug)]
@@ -36,6 +52,13 @@ pub struct Product {
 enum Going {
     Continue,
     Stop,
+    NeedInput,
+}
+
+#[derive(Debug)]
+enum Stopped {
+    NeedInput(IntCode),
+    Complete(Product),
 }
 
 // pub type Error = ();
@@ -89,6 +112,7 @@ pub const MAX_VERB: Value = 99;
 
 type BinaryOp = fn(Value, Value) -> Value;
 type CmpOp = fn(Value, Value) -> bool;
+type UnaryBoolOp = fn(Value) -> bool;
 
 impl IntCode {
     pub fn from_str(s: &str) -> Result<Self> {
@@ -99,8 +123,8 @@ impl IntCode {
         IntCode {
             memory,
             index: 0,
-            inputs: Vec::new(),
-            outputs: Vec::new(),
+            inputs: VecDeque::new(),
+            outputs: VecDeque::new(),
         }
     }
 
@@ -109,24 +133,46 @@ impl IntCode {
         loop {
             match self.step()? {
                 // Going::Continue => (),
-                Going::Continue => debug!("Continuing"),
+                Going::Continue => {
+                    debug!("Continuing");
+                    ()
+                }
                 // Going::Stop => break,
                 Going::Stop => {
                     debug!("Stopping");
                     break;
                 }
+                Going::NeedInput => return Err("Ran out of inputs".to_string()),
             }
         }
         debug!("done running");
-        // Outputs are currently in reverse order, un-reverse them
-        self.outputs.reverse();
         Ok(Product::new(self.memory, self.outputs))
     }
 
-    pub fn with_inputs(mut self, mut inputs: Vec<Value>) -> Self {
-        // We want inputs in reverse order so we can pop them off one by one
-        inputs.reverse();
-        self.inputs = inputs;
+    pub fn run_blocking_input(mut self) -> Result<Stopped> {
+        debug!("running blocking");
+        loop {
+            match self.step()? {
+                // Going::Continue => (),
+                Going::Continue => {
+                    debug!("Continuing");
+                    ()
+                }
+                // Going::Stop => break,
+                Going::Stop => {
+                    debug!("Stopping, complete");
+                    return Ok(Stopped::Complete(Product::new(self.memory, self.outputs)));
+                }
+                Going::NeedInput => {
+                    debug!("Stopping, need input");
+                    return Ok(Stopped::NeedInput(self));
+                }
+            }
+        }
+    }
+
+    pub fn with_inputs(mut self, inputs: Vec<Value>) -> Self {
+        self.inputs = VecDeque::from(inputs);
         self
     }
 
@@ -152,7 +198,7 @@ impl IntCode {
 
     fn execute(&mut self, instruction: Instruction) -> Result<Going> {
         let modes = instruction.parameter_modes;
-        let result = match instruction.opcode {
+        match instruction.opcode {
             OpCode::Add => self.op_add(modes),
             OpCode::Mul => self.op_mul(modes),
             OpCode::Input => self.op_input(modes),
@@ -161,81 +207,81 @@ impl IntCode {
             OpCode::JumpIfFalse => self.op_jump_if_false(modes),
             OpCode::LessThan => self.op_less_than(modes),
             OpCode::Equals => self.op_equals(modes),
-            OpCode::Halt => return Ok(Going::Stop),
-        };
-        result.map(|()| Going::Continue)
+            OpCode::Halt => Ok(Going::Stop),
+        }
     }
 
-    fn op_add(&mut self, modes: ParameterModes) -> Result<()> {
+    fn op_add(&mut self, modes: ParameterModes) -> Result<Going> {
         self.binary_op(modes, ops::Add::add)
     }
 
-    fn op_mul(&mut self, modes: ParameterModes) -> Result<()> {
+    fn op_mul(&mut self, modes: ParameterModes) -> Result<Going> {
         self.binary_op(modes, ops::Mul::mul)
     }
 
-    fn op_input(&mut self, _modes: ParameterModes) -> Result<()> {
-        let input = self.inputs.pop().ok_or("Ran out of inputs".to_string())?;
-        let param_index = self.next_value()?;
+    fn op_input(&mut self, _modes: ParameterModes) -> Result<Going> {
+        let input = match self.inputs.pop_front() {
+            Some(v) => v,
+            None => {
+                // Roll back index so we can be restarted
+                self.index -= 1;
+                return Ok(Going::NeedInput);
+            }
+        };
+        let (param_index,) = self.get_params1(ParameterMode::Immediate)?;
         let param_index = to_usize(param_index)?;
         let dest = self.get_mut(param_index)?;
         *dest = input;
-        Ok(())
+        Ok(Going::Continue)
     }
 
-    fn op_output(&mut self, modes: ParameterModes) -> Result<()> {
-        let value = self.next_param(modes.get(0))?;
-        self.outputs.push(value);
-        Ok(())
+    fn op_output(&mut self, modes: ParameterModes) -> Result<Going> {
+        let (value,) = self.get_params1(modes.get(0))?;
+        self.outputs.push_back(value);
+        Ok(Going::Continue)
     }
 
-    fn op_jump_if_true(&mut self, modes: ParameterModes) -> Result<()> {
-        let value = self.next_param(modes.get(0))?;
-        if value != 0 {
-            let _ = self.do_jump(modes.get(1))?;
-        } else {
-            // Increment the index
-            let _ = self.next_value()?;
-        }
-        Ok(())
+    fn op_jump_if_true(&mut self, modes: ParameterModes) -> Result<Going> {
+        self.jump_op(modes, |v| v != 0)
     }
 
-    fn op_jump_if_false(&mut self, modes: ParameterModes) -> Result<()> {
-        let value = self.next_param(modes.get(0))?;
-        if value == 0 {
-            let _ = self.do_jump(modes.get(1))?;
-        } else {
-            // Increment the index
-            let _ = self.next_value()?;
-        }
-        Ok(())
+    fn op_jump_if_false(&mut self, modes: ParameterModes) -> Result<Going> {
+        self.jump_op(modes, |v| v == 0)
     }
 
-    fn op_less_than(&mut self, modes: ParameterModes) -> Result<()> {
+    fn op_less_than(&mut self, modes: ParameterModes) -> Result<Going> {
         self.cmp_op(modes, |x, y| x < y)
     }
 
-    fn op_equals(&mut self, modes: ParameterModes) -> Result<()> {
+    fn op_equals(&mut self, modes: ParameterModes) -> Result<Going> {
         self.cmp_op(modes, |x, y| x == y)
     }
 
-    fn do_jump(&mut self, mode: ParameterMode) -> Result<()> {
-        let dest_index = self.next_param(mode)?;
-        self.index = to_usize(dest_index)?;
-        Ok(())
+    fn jump_op(&mut self, modes: ParameterModes, op: UnaryBoolOp) -> Result<Going> {
+        let (value, dest_index) = self.get_params2(modes.get(0), modes.get(1))?;
+        if op(value) {
+            self.do_jump(dest_index)
+        } else {
+            Ok(Going::Continue)
+        }
     }
 
-    fn binary_op(&mut self, modes: ParameterModes, op: BinaryOp) -> Result<()> {
+    fn do_jump(&mut self, dest_index: Value) -> Result<Going> {
+        self.index = to_usize(dest_index)?;
+        Ok(Going::Continue)
+    }
+
+    fn binary_op(&mut self, modes: ParameterModes, op: BinaryOp) -> Result<Going> {
         let op1 = self.next_param(modes.get(0))?;
         let op2 = self.next_param(modes.get(1))?;
         let dest_index = self.next_value()?;
         let dest_index = to_usize(dest_index)?;
         let dest = self.get_mut(dest_index)?;
         *dest = op(op1, op2);
-        Ok(())
+        Ok(Going::Continue)
     }
 
-    fn cmp_op(&mut self, modes: ParameterModes, op: CmpOp) -> Result<()> {
+    fn cmp_op(&mut self, modes: ParameterModes, op: CmpOp) -> Result<Going> {
         let op1 = self.next_param(modes.get(0))?;
         let op2 = self.next_param(modes.get(1))?;
         let dest_index = self.next_value()?;
@@ -243,7 +289,48 @@ impl IntCode {
         let dest = self.get_mut(dest_index)?;
         let value = if op(op1, op2) { 1 } else { 0 };
         *dest = value;
-        Ok(())
+        Ok(Going::Continue)
+    }
+
+    fn get_params1(&mut self, mode1: ParameterMode) -> Result<(Value,)> {
+        let param1 = self.next_param(mode1)?;
+        Ok((param1,))
+    }
+
+    fn get_params2(
+        &mut self,
+        mode1: ParameterMode,
+        mode2: ParameterMode,
+    ) -> Result<(Value, Value)> {
+        let param1 = self.next_param(mode1)?;
+        let param2 = self.next_param(mode2)?;
+        Ok((param1, param2))
+    }
+
+    fn get_params3(
+        &mut self,
+        mode1: ParameterMode,
+        mode2: ParameterMode,
+        mode3: ParameterMode,
+    ) -> Result<(Value, Value, Value)> {
+        let param1 = self.next_param(mode1)?;
+        let param2 = self.next_param(mode2)?;
+        let param3 = self.next_param(mode3)?;
+        Ok((param1, param2, param3))
+    }
+
+    fn get_params4(
+        &mut self,
+        mode1: ParameterMode,
+        mode2: ParameterMode,
+        mode3: ParameterMode,
+        mode4: ParameterMode,
+    ) -> Result<(Value, Value, Value, Value)> {
+        let param1 = self.next_param(mode1)?;
+        let param2 = self.next_param(mode2)?;
+        let param3 = self.next_param(mode3)?;
+        let param4 = self.next_param(mode4)?;
+        Ok((param1, param2, param3, param4))
     }
 
     fn next_param(&mut self, mode: ParameterMode) -> Result<Value> {
@@ -276,8 +363,11 @@ impl IntCode {
 }
 
 impl Product {
-    pub fn new(memory: Vec<Value>, outputs: Vec<Value>) -> Self {
-        Product { memory, outputs }
+    pub fn new(memory: Vec<Value>, outputs: VecDeque<Value>) -> Self {
+        Product {
+            memory,
+            outputs: Vec::from(debug!(outputs)),
+        }
     }
 
     #[allow(dead_code)]
@@ -290,8 +380,18 @@ impl Product {
         &self.outputs
     }
 
-    pub fn get(&self, index: usize) -> Result<Value> {
+    pub fn get_output(&self, index: usize) -> Result<Value> {
         get(&self.memory, index)
+    }
+
+    pub fn first_output(&self) -> Result<Value> {
+        eprintln!("outputs: {:?}", self.outputs);
+        self.outputs.first().copied().ok_or_else(|| "No outputs".to_string())
+    }
+
+    pub fn last_output(&self) -> Result<Value> {
+        eprintln!("outputs: {:?}", self.outputs);
+        self.outputs.last().copied().ok_or_else(|| "No outputs".to_string())
     }
 }
 

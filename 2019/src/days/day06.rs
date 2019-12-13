@@ -170,4 +170,14 @@ mod test {
         assert_eq!(suffix_len(&a, &e), 0);
         assert_eq!(suffix_len(&a, &f), 0);
     }
+
+    #[test]
+    fn answer01a() {
+        assert_eq!(solve1(INPUT), Ok(308790));
+    }
+
+    #[test]
+    fn answer01b() {
+        assert_eq!(solve2(INPUT), Ok(472));
+    }
 }

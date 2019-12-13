@@ -137,4 +137,14 @@ mod test {
         assert!(!meets_criteria1(223450));
         assert!(!meets_criteria1(123789));
     }
+
+    #[test]
+    fn answer01a() {
+        assert_eq!(solve1(INPUT), Ok(579));
+    }
+
+    #[test]
+    fn answer01b() {
+        assert_eq!(solve2(INPUT), Ok(358));
+    }
 }

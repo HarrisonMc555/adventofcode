@@ -245,7 +245,7 @@ impl EitherRangeInclusive {
 
 #[cfg(test)]
 mod test {
-    use super::EitherRangeInclusive;
+    use super::*;
 
     #[test]
     fn either_range_up() {
@@ -287,5 +287,15 @@ mod test {
         assert_eq!(iter.next(), Some(-2));
         assert_eq!(iter.next(), Some(-3));
         assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn answer01a() {
+        assert_eq!(solve1(INPUT), Ok(221));
+    }
+
+    #[test]
+    fn answer01b() {
+        assert_eq!(solve2(INPUT), Ok(18542));
     }
 }

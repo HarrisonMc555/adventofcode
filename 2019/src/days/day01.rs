@@ -42,3 +42,18 @@ fn calc_fuel(mass: Value) -> Value {
 fn parse(input: &str) -> Result<Vec<Value>> {
     input.lines().map(|s| s.parse().map_err(|_| ())).collect()
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn answer01a() {
+        assert_eq!(solve1(INPUT), Ok(3514064));
+    }
+
+    #[test]
+    fn answer01b() {
+        assert_eq!(solve2(INPUT), Ok(5268207));
+    }
+}

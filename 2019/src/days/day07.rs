@@ -33,10 +33,7 @@ fn run_amplifier(program: IntCode, phase_setting: Value, input_signal: Value) ->
     program
         .with_inputs(vec![phase_setting, input_signal])
         .run()?
-        .outputs()
-        .first()
-        .copied()
-        .ok_or_else(|| "No output".to_string())
+        .last_output()
 }
 
 fn permutations<T>(arr: &[T]) -> Vec<Vec<T>>
@@ -132,4 +129,14 @@ mod test {
         actual.sort();
         assert_eq!(actual, expected);
     }
+
+    #[test]
+    fn answer01a() {
+        assert_eq!(solve1(INPUT), Ok(38500));
+    }
+
+    // #[test]
+    // fn answer01b() {
+    //     assert_eq!(solve2(INPUT), Ok(3188550));
+    // }
 }

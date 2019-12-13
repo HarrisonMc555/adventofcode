@@ -16,7 +16,7 @@ pub fn main() {
 }
 
 fn solve1(input: &str, noun: Value, verb: Value) -> Result<Value> {
-    IntCode::from_str(input)?.altered(noun, verb)?.run()?.get(0)
+    IntCode::from_str(input)?.altered(noun, verb)?.run()?.get_output(0)
 }
 
 fn solve2(input: &str, output_goal: Value) -> Result<Value> {
@@ -24,11 +24,26 @@ fn solve2(input: &str, output_goal: Value) -> Result<Value> {
     for noun in 0..=MAX_NOUN {
         for verb in 0..=MAX_VERB {
             let result: Result<Product> = program.clone().altered(noun, verb)?.run();
-            if result.and_then(|product| product.get(0)) == Ok(output_goal) {
+            if result.and_then(|product| product.get_output(0)) == Ok(output_goal) {
                 return Ok(100 * noun + verb);
             }
         }
     }
     // Err(())
     Err("No solution found for solve2".to_string())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn answer02a() {
+        assert_eq!(solve1(INPUT, DEFAULT_NOUN, DEFAULT_VERB), Ok(6568671));
+    }
+
+    #[test]
+    fn answer02b() {
+        assert_eq!(solve2(INPUT, OUTPUT_GOAL), Ok(3951));
+    }
 }

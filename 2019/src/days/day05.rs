@@ -16,20 +16,14 @@ fn solve1(input: &str) -> Result<Value> {
     IntCode::from_str(input)?
         .with_inputs(PROGRAM_INPUT1.to_vec())
         .run()?
-        .outputs()
-        .first()
-        .copied()
-        .ok_or("No outputs".to_string())
+        .last_output()
 }
 
 fn solve2(input: &str) -> Result<Value> {
     IntCode::from_str(input)?
         .with_inputs(PROGRAM_INPUT2.to_vec())
         .run()?
-        .outputs()
-        .first()
-        .copied()
-        .ok_or("No outputs".to_string())
+        .last_output()
 }
 
 #[cfg(test)]
@@ -210,5 +204,15 @@ mod test {
             .ok_or("No outputs")?;
         assert_eq!(output_not_eq_target2, 1);
         Ok(())
+    }
+
+    #[test]
+    fn answer01a() {
+        assert_eq!(solve1(INPUT), Ok(6069343));
+    }
+
+    #[test]
+    fn answer01b() {
+        assert_eq!(solve2(INPUT), Ok(3188550));
     }
 }
