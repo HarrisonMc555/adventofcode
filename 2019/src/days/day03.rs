@@ -40,8 +40,8 @@ const INPUT: &str = include_str!("../../static/day03.txt");
 
 pub fn main() {
     let answer1 = solve1(INPUT).unwrap();
-    let answer2 = solve2(INPUT).unwrap();
     println!("{}", answer1);
+    let answer2 = solve2(INPUT).unwrap();
     println!("{}", answer2);
 }
 

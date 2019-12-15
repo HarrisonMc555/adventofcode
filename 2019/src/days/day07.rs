@@ -7,8 +7,8 @@ const STARTING_INPUT_SIGNAL: Value = 0;
 
 pub fn main() {
     let answer1 = solve1(INPUT);
-    let answer2 = solve2(INPUT);
     println!("{:?}", answer1);
+    let answer2 = solve2(INPUT);
     println!("{:?}", answer2);
 }
 

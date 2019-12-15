@@ -10,8 +10,8 @@ const OUTPUT_GOAL: Value = 19690720;
 
 pub fn main() {
     let answer1 = solve1(INPUT, DEFAULT_NOUN, DEFAULT_VERB).unwrap();
-    let answer2 = solve2(INPUT, OUTPUT_GOAL).unwrap();
     println!("{}", answer1);
+    let answer2 = solve2(INPUT, OUTPUT_GOAL).unwrap();
     println!("{}", answer2);
 }
 

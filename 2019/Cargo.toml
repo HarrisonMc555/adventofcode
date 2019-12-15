@@ -8,4 +8,4 @@ edition = "2018"
 
 [dependencies]
 num-traits = "0.2.10"
-array2d = "0.2"
+array2d = { version = "0.2", git = "https://github.com/HarrisonMc555/array2d.git" }
