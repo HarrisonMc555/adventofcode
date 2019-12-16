@@ -2,8 +2,10 @@ use crate::util::intcode::{IntCode, Result, Value};
 
 const INPUT: &str = include_str!("../../static/day05.txt");
 
-const PROGRAM_INPUT1: [Value; 1] = [Value::from(1)];
-const PROGRAM_INPUT2: [Value; 1] = [Value::from(5)];
+lazy_static! {
+    static ref PROGRAM_INPUT1: [Value; 1] = [Value::from(1)];
+    static ref PROGRAM_INPUT2: [Value; 1] = [Value::from(5)];
+}
 
 pub fn main() {
     let answer1 = solve1(INPUT).unwrap();
@@ -13,17 +15,19 @@ pub fn main() {
 }
 
 fn solve1(input: &str) -> Result<Value> {
-    IntCode::from_str(input)?
+    let output = IntCode::from_str(input)?
         .with_inputs(PROGRAM_INPUT1.to_vec())
         .run()?
-        .last_output()
+        .last_output()?;
+    Ok(output.clone())
 }
 
 fn solve2(input: &str) -> Result<Value> {
-    IntCode::from_str(input)?
+    let output = IntCode::from_str(input)?
         .with_inputs(PROGRAM_INPUT2.to_vec())
         .run()?
-        .last_output()
+        .last_output()?;
+    Ok(output.clone())
 }
 
 #[cfg(test)]
@@ -34,7 +38,7 @@ mod test {
     fn input_output() -> Result<()> {
         let input = Value::from(78);
         let output = IntCode::from_str("3,0,4,0,99")?
-            .with_inputs(vec![Value::from(input)])
+            .with_inputs(vec![input.clone()])
             .run()?
             .last_output()?;
         assert_eq!(output, input);
@@ -57,17 +61,17 @@ mod test {
         let program_str = "3,9,8,9,10,9,4,9,99,-1,8";
         let target = Value::from(8);
         let output_eq_target = IntCode::from_str(program_str)?
-            .with_inputs(vec![target])
+            .with_inputs(vec![target.clone()])
             .run()?
             .last_output()?;
         assert_eq!(output_eq_target, Value::from(1));
         let output_not_eq_target1 = IntCode::from_str(program_str)?
-            .with_inputs(vec![target + 1])
+            .with_inputs(vec![target.clone() + 1])
             .run()?
             .last_output()?;
         assert_eq!(output_not_eq_target1, Value::from(0));
         let output_not_eq_target2 = IntCode::from_str(program_str)?
-            .with_inputs(vec![target - 1])
+            .with_inputs(vec![target.clone() - 1])
             .run()?
             .last_output()?;
         assert_eq!(output_not_eq_target2, Value::from(0));
@@ -79,17 +83,17 @@ mod test {
         let program_str = "3,9,7,9,10,9,4,9,99,-1,8";
         let target = Value::from(8);
         let output_eq_target = IntCode::from_str(program_str)?
-            .with_inputs(vec![target])
+            .with_inputs(vec![target.clone()])
             .run()?
             .last_output()?;
         assert_eq!(output_eq_target, Value::from(0));
         let output_less_than_target = IntCode::from_str(program_str)?
-            .with_inputs(vec![target - 1])
+            .with_inputs(vec![target.clone() - 1])
             .run()?
             .last_output()?;
         assert_eq!(output_less_than_target, Value::from(1));
         let output_greater_than_target = IntCode::from_str(program_str)?
-            .with_inputs(vec![target + 1])
+            .with_inputs(vec![target.clone() + 1])
             .run()?
             .last_output()?;
         assert_eq!(output_greater_than_target, Value::from(0));
@@ -101,17 +105,17 @@ mod test {
         let program_str = "3,3,1108,-1,8,3,4,3,99";
         let target = Value::from(8);
         let output_eq_target = IntCode::from_str(program_str)?
-            .with_inputs(vec![target])
+            .with_inputs(vec![target.clone()])
             .run()?
             .last_output()?;
         assert_eq!(output_eq_target, Value::from(1));
         let output_not_eq_target1 = IntCode::from_str(program_str)?
-            .with_inputs(vec![target + 1])
+            .with_inputs(vec![target.clone() + 1])
             .run()?
             .last_output()?;
         assert_eq!(output_not_eq_target1, Value::from(0));
         let output_not_eq_target2 = IntCode::from_str(program_str)?
-            .with_inputs(vec![target - 1])
+            .with_inputs(vec![target.clone() - 1])
             .run()?
             .last_output()?;
         assert_eq!(output_not_eq_target2, Value::from(0));
@@ -123,17 +127,17 @@ mod test {
         let program_str = "3,3,1107,-1,8,3,4,3,99";
         let target = Value::from(8);
         let output_eq_target = IntCode::from_str(program_str)?
-            .with_inputs(vec![target])
+            .with_inputs(vec![target.clone()])
             .run()?
             .last_output()?;
         assert_eq!(output_eq_target, Value::from(0));
         let output_less_than_target = IntCode::from_str(program_str)?
-            .with_inputs(vec![target - 1])
+            .with_inputs(vec![target.clone() - 1])
             .run()?
             .last_output()?;
         assert_eq!(output_less_than_target, Value::from(1));
         let output_greater_than_target = IntCode::from_str(program_str)?
-            .with_inputs(vec![target + 1])
+            .with_inputs(vec![target.clone() + 1])
             .run()?
             .last_output()?;
         assert_eq!(output_greater_than_target, Value::from(0));
@@ -145,17 +149,17 @@ mod test {
         let program_str = "3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9";
         let target = Value::from(0);
         let output_eq_target = IntCode::from_str(program_str)?
-            .with_inputs(vec![target])
+            .with_inputs(vec![target.clone()])
             .run()?
             .last_output()?;
         assert_eq!(output_eq_target, Value::from(0));
         let output_not_eq_target1 = IntCode::from_str(program_str)?
-            .with_inputs(vec![target + 1])
+            .with_inputs(vec![target.clone() + 1])
             .run()?
             .last_output()?;
         assert_eq!(output_not_eq_target1, Value::from(1));
         let output_not_eq_target2 = IntCode::from_str(program_str)?
-            .with_inputs(vec![target + 7])
+            .with_inputs(vec![target.clone() + 7])
             .run()?
             .last_output()?;
         assert_eq!(output_not_eq_target2, Value::from(1));

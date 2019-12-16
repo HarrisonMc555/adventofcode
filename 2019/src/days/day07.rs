@@ -4,7 +4,9 @@ use std::collections::VecDeque;
 const INPUT: &str = include_str!("../../static/day07.txt");
 
 const NUM_AMPLIFIERS: usize = 5;
-const STARTING_INPUT_SIGNAL: Value = Value::from(0);
+lazy_static! {
+    static ref STARTING_INPUT_SIGNAL: Value = Value::from(0);
+}
 
 pub fn main() {
     let answer1 = solve1(INPUT);
@@ -34,27 +36,28 @@ fn solve2(input: &str) -> Result<Value> {
 }
 
 fn run_amplifiers(program: IntCode, phase_settings: &[Value]) -> Result<Value> {
-    let mut input_signal = STARTING_INPUT_SIGNAL;
-    for &phase_setting in phase_settings {
-        input_signal = run_amplifier(program.clone(), phase_setting, input_signal)?;
+    let mut input_signal = (*STARTING_INPUT_SIGNAL).clone();
+    for phase_setting in phase_settings {
+        input_signal = run_amplifier(program.clone(), phase_setting.clone(), input_signal)?;
     }
     Ok(input_signal)
 }
 
 fn run_amplifier(program: IntCode, phase_setting: Value, input_signal: Value) -> Result<Value> {
-    program
+    let output = program
         .with_inputs(vec![phase_setting, input_signal])
         .run()?
-        .last_output()
+        .last_output()?;
+    Ok(output.clone())
 }
 
 fn run_amplifiers_feedback(program: IntCode, phase_settings: &[Value]) -> Result<Value> {
     let mut programs = phase_settings
         .iter()
         .enumerate()
-        .map(|(i, &phase_setting)| (i, program.clone().with_inputs(vec![phase_setting])))
+        .map(|(i, phase_setting)| (i, program.clone().with_inputs(vec![phase_setting.clone()])))
         .collect::<VecDeque<_>>();
-    let mut input_signal = STARTING_INPUT_SIGNAL;
+    let mut input_signal = (*STARTING_INPUT_SIGNAL).clone();
     let last_amplifier_index = programs.len() - 1;
     let mut recent_last_amplifier_output: Option<Value> = None;
     loop {
@@ -73,18 +76,18 @@ fn run_amplifiers_feedback(program: IntCode, phase_settings: &[Value]) -> Result
             }
             Stopped::Complete(product) => {
                 // Don't push back on stack, it's done
-                product.last_output()?
+                product.last_output()?.clone()
             }
         };
-        input_signal = output_signal;
         if i == last_amplifier_index {
-            recent_last_amplifier_output = Some(output_signal);
+            recent_last_amplifier_output = Some(output_signal.clone());
         }
+        input_signal = output_signal;
     }
 }
 
 fn run_amplifier_til_input(mut program: IntCode, input_signal: Value) -> Result<Stopped> {
-    program.push_input(input_signal);
+    program.push_input(&input_signal);
     program.run_blocking_input()
 }
 

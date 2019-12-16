@@ -1,4 +1,4 @@
-use crate::util::intcode::{IntCode, Product, Result, Value};
+use crate::util::intcode::{IntCode, Result, Value};
 use num_iter::range_inclusive;
 use num_traits::identities::Zero;
 
@@ -13,31 +13,35 @@ lazy_static! {
 }
 
 pub fn main() {
-    let answer1 = solve1(INPUT, DEFAULT_NOUN.clone(), DEFAULT_VERB.clone()).unwrap();
+    let answer1 = solve1(INPUT, &*DEFAULT_NOUN, &*DEFAULT_VERB).unwrap();
     println!("{}", answer1);
-    let answer2 = solve2(INPUT, OUTPUT_GOAL.clone()).unwrap();
+    let answer2 = solve2(INPUT, &*OUTPUT_GOAL).unwrap();
     println!("{}", answer2);
 }
 
-fn solve1(input: &str, noun: Value, verb: Value) -> Result<Value> {
-    IntCode::from_str(input)?
+fn solve1(input: &str, noun: &Value, verb: &Value) -> Result<Value> {
+    let output = IntCode::from_str(input)?
         .altered(noun, verb)?
         .run()?
-        .get_output(0)
+        .get_memory_at(0)?
+        .clone();
+    Ok(output)
 }
 
-fn solve2(input: &str, output_goal: Value) -> Result<Value> {
+fn solve2(input: &str, output_goal: &Value) -> Result<Value> {
     let program = IntCode::from_str(input)?;
     for noun in range_inclusive(Value::zero(), MAX_NOUN.clone()) {
         for verb in range_inclusive(Value::zero(), MAX_VERB.clone()) {
-            let result: Result<Product> =
-                program.clone().altered(noun.clone(), verb.clone())?.run();
-            if result.and_then(|product| product.get_output(0)) == Ok(output_goal.clone()) {
+            let result = program
+                .clone()
+                .altered(&noun, &verb)?
+                .run()
+                .and_then(|product| product.get_memory_at(0));
+            if result.as_ref() == Ok(output_goal) {
                 return Ok(100 * noun + verb);
             }
         }
     }
-    // Err(())
     Err("No solution found for solve2".to_string())
 }
 
@@ -48,13 +52,13 @@ mod test {
     #[test]
     fn answer02a() {
         assert_eq!(
-            solve1(INPUT, DEFAULT_NOUN.clone(), DEFAULT_VERB.clone()),
+            solve1(INPUT, &*DEFAULT_NOUN, &*DEFAULT_VERB),
             Ok(Value::from(6568671))
         );
     }
 
     #[test]
     fn answer02b() {
-        assert_eq!(solve2(INPUT, OUTPUT_GOAL.clone()), Ok(Value::from(3951)));
+        assert_eq!(solve2(INPUT, &*OUTPUT_GOAL), Ok(Value::from(3951)));
     }
 }

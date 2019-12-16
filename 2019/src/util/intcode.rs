@@ -1,7 +1,6 @@
 use crate::util::digits::DigitsRev;
 use std::collections::VecDeque;
 use std::convert::TryFrom;
-use std::ops;
 use num_bigint::BigInt;
 use num_traits::identities::{One, Zero};
 
@@ -96,9 +95,9 @@ struct Instruction {
     parameter_modes: ParameterModes,
 }
 
-type BinaryOp = fn(Value, Value) -> Value;
-type CmpOp = fn(Value, Value) -> bool;
-type UnaryBoolOp = fn(Value) -> bool;
+type BinaryOp = fn(&Value, &Value) -> Value;
+type CmpOp = fn(&Value, &Value) -> bool;
+type UnaryBoolOp = fn(&Value) -> bool;
 
 impl IntCode {
     pub fn from_str(s: &str) -> Result<Self> {
@@ -158,8 +157,8 @@ impl IntCode {
         self
     }
 
-    pub fn push_input(&mut self, input: Value) {
-        self.inputs.push_back(input);
+    pub fn push_input(&mut self, input: &Value) {
+        self.inputs.push_back(input.clone());
     }
 
     pub fn pop_output(&mut self) -> Result<Value> {
@@ -168,21 +167,21 @@ impl IntCode {
             .ok_or_else(|| "No outputs".to_string())
     }
 
-    pub fn altered(mut self, noun: Value, verb: Value) -> Result<Self> {
+    pub fn altered(mut self, noun: &Value, verb: &Value) -> Result<Self> {
         self.alter(noun, verb)?;
         Ok(self)
     }
 
-    fn alter(&mut self, noun: Value, verb: Value) -> Result<()> {
-        *self.get_mut(1)? = noun;
-        *self.get_mut(2)? = verb;
+    fn alter(&mut self, noun: &Value, verb: &Value) -> Result<()> {
+        *self.get_mut(1)? = noun.clone();
+        *self.get_mut(2)? = verb.clone();
         Ok(())
     }
 
     fn step(&mut self) -> Result<Going> {
         let value = self.next_value()?;
         debug!(&value);
-        let instruction = Instruction::try_from(value)?;
+        let instruction = Instruction::try_from(&value)?;
         debug!(&instruction);
         self.execute(instruction)
     }
@@ -203,11 +202,11 @@ impl IntCode {
     }
 
     fn op_add(&mut self, modes: ParameterModes) -> Result<Going> {
-        self.binary_op(modes, ops::Add::add)
+        self.binary_op(modes, |x, y| x + y)
     }
 
     fn op_mul(&mut self, modes: ParameterModes) -> Result<Going> {
-        self.binary_op(modes, ops::Mul::mul)
+        self.binary_op(modes, |x, y| x * y)
     }
 
     fn op_input(&mut self, _modes: ParameterModes) -> Result<Going> {
@@ -220,7 +219,7 @@ impl IntCode {
             }
         };
         let (param_index,) = self.get_params1(ParameterMode::Immediate)?;
-        let param_index = to_usize(param_index)?;
+        let param_index = to_usize(&param_index)?;
         let dest = self.get_mut(param_index)?;
         *dest = input;
         Ok(Going::Continue)
@@ -228,16 +227,17 @@ impl IntCode {
 
     fn op_output(&mut self, modes: ParameterModes) -> Result<Going> {
         let (value,) = self.get_params1(modes.get(0))?;
+        let value = value.clone();
         self.outputs.push_back(value);
         Ok(Going::Continue)
     }
 
     fn op_jump_if_true(&mut self, modes: ParameterModes) -> Result<Going> {
-        self.jump_op(modes, |v| v != Value::zero())
+        self.jump_op(modes, |v| v != &Value::zero())
     }
 
     fn op_jump_if_false(&mut self, modes: ParameterModes) -> Result<Going> {
-        self.jump_op(modes, |v| v == Value::zero())
+        self.jump_op(modes, |v| v == &Value::zero())
     }
 
     fn op_less_than(&mut self, modes: ParameterModes) -> Result<Going> {
@@ -250,14 +250,16 @@ impl IntCode {
 
     fn jump_op(&mut self, modes: ParameterModes, op: UnaryBoolOp) -> Result<Going> {
         let (value, dest_index) = self.get_params2(modes.get(0), modes.get(1))?;
-        if op(value) {
-            self.do_jump(dest_index)
+        let value = value.clone();
+        let dest_index = dest_index.clone();
+        if op(&value) {
+            self.do_jump(&dest_index)
         } else {
             Ok(Going::Continue)
         }
     }
 
-    fn do_jump(&mut self, dest_index: Value) -> Result<Going> {
+    fn do_jump(&mut self, dest_index: &Value) -> Result<Going> {
         self.index = to_usize(dest_index)?;
         Ok(Going::Continue)
     }
@@ -265,24 +267,24 @@ impl IntCode {
     fn binary_op(&mut self, modes: ParameterModes, op: BinaryOp) -> Result<Going> {
         let (op1, op2, dest_index) =
             self.get_params3(modes.get(0), modes.get(1), ParameterMode::Immediate)?;
-        let dest_index = to_usize(dest_index)?;
+        let dest_index = to_usize(&dest_index)?;
         let dest = self.get_mut(dest_index)?;
-        *dest = op(op1, op2);
+        *dest = op(&op1, &op2);
         Ok(Going::Continue)
     }
 
     fn cmp_op(&mut self, modes: ParameterModes, op: CmpOp) -> Result<Going> {
         let (op1, op2, dest_index) =
             self.get_params3(modes.get(0), modes.get(1), ParameterMode::Immediate)?;
-        let dest_index = to_usize(dest_index)?;
+        let dest_index = to_usize(&dest_index)?;
         let dest = self.get_mut(dest_index)?;
-        let value = if op(op1, op2) { Value::one() } else { Value::zero() };
+        let value = if op(&op1, &op2) { Value::one() } else { Value::zero() };
         *dest = value;
         Ok(Going::Continue)
     }
 
     fn get_params1(&mut self, mode1: ParameterMode) -> Result<(Value,)> {
-        let param1 = self.next_param(mode1)?;
+        let param1 = self.next_param(mode1)?.clone();
         Ok((param1,))
     }
 
@@ -291,8 +293,8 @@ impl IntCode {
         mode1: ParameterMode,
         mode2: ParameterMode,
     ) -> Result<(Value, Value)> {
-        let param1 = self.next_param(mode1)?;
-        let param2 = self.next_param(mode2)?;
+        let param1 = self.next_param(mode1)?.clone();
+        let param2 = self.next_param(mode2)?.clone();
         Ok((param1, param2))
     }
 
@@ -302,9 +304,9 @@ impl IntCode {
         mode2: ParameterMode,
         mode3: ParameterMode,
     ) -> Result<(Value, Value, Value)> {
-        let param1 = self.next_param(mode1)?;
-        let param2 = self.next_param(mode2)?;
-        let param3 = self.next_param(mode3)?;
+        let param1 = self.next_param(mode1)?.clone();
+        let param2 = self.next_param(mode2)?.clone();
+        let param3 = self.next_param(mode3)?.clone();
         Ok((param1, param2, param3))
     }
 
@@ -316,32 +318,33 @@ impl IntCode {
         mode3: ParameterMode,
         mode4: ParameterMode,
     ) -> Result<(Value, Value, Value, Value)> {
-        let param1 = self.next_param(mode1)?;
-        let param2 = self.next_param(mode2)?;
-        let param3 = self.next_param(mode3)?;
-        let param4 = self.next_param(mode4)?;
+        let param1 = self.next_param(mode1)?.clone();
+        let param2 = self.next_param(mode2)?.clone();
+        let param3 = self.next_param(mode3)?.clone();
+        let param4 = self.next_param(mode4)?.clone();
         Ok((param1, param2, param3, param4))
     }
 
     fn next_param(&mut self, mode: ParameterMode) -> Result<Value> {
-        let value = self.next_value()?;
+        let value = self.next_value()?.clone();
         let value = match mode {
             ParameterMode::Position => self
-                .get(to_usize(value)?)
+                .get(to_usize(&value)?)
+                .map(|v| v.clone())
                 .map_err(|_| "Param index out of bound".to_string())?,
-            ParameterMode::Immediate => value,
+            ParameterMode::Immediate => value.clone(),
         };
         Ok(value)
     }
 
     fn next_value(&mut self) -> Result<Value> {
-        let value = self.get(self.index)?;
+        let value = self.get(self.index)?.clone();
         self.index += 1;
         Ok(value)
     }
 
-    fn get(&self, index: usize) -> Result<Value> {
-        get(&self.memory, index).clone()
+    fn get(&self, index: usize) -> Result<&Value> {
+        get(&self.memory, index)
     }
 
     fn get_mut(&mut self, index: usize) -> Result<&mut Value> {
@@ -385,8 +388,8 @@ impl Product {
         &self.outputs
     }
 
-    pub fn get_output(&self, index: usize) -> Result<Value> {
-        get(&self.memory, index).clone()
+    pub fn get_memory_at(&self, index: usize) -> Result<Value> {
+        get(&self.memory, index).map(|v| v.clone())
     }
 
     #[allow(dead_code)]
@@ -414,17 +417,14 @@ impl ParameterModes {
     }
 }
 
-fn get<T>(slice: &[T], index: usize) -> Result<T>
-where
-    T: Clone,
+fn get<T>(slice: &[T], index: usize) -> Result<&T>
 {
     slice
         .get(index)
-        .cloned()
         .ok_or(format!("Index {} out of bounds", index))
 }
 
-fn to_usize(input: Value) -> Result<usize> {
+fn to_usize(input: &Value) -> Result<usize> {
     use num_traits::cast::ToPrimitive;
     input
         .to_usize()
@@ -445,11 +445,11 @@ impl std::str::FromStr for IntCode {
     }
 }
 
-impl TryFrom<Value> for Instruction {
+impl TryFrom<&Value> for Instruction {
     type Error = Error;
 
-    fn try_from(value: Value) -> Result<Self> {
-        let mut digits = DigitsRev::decimal(value);
+    fn try_from(value: &Value) -> Result<Self> {
+        let mut digits = DigitsRev::decimal(value.clone());
         let ones = digits.next().ok_or("No opcode found".to_string())?;
         let tens = digits.next().unwrap_or(0);
         let opcode = tens * 10 + ones;
