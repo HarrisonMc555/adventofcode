@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate lazy_static;
+
 use std::env;
 
 mod util;
@@ -5,7 +8,7 @@ mod days;
 
 use days::*;
 
-const DEFAULT_FN: fn() = day08::main;
+const DEFAULT_FN: fn() = day09::main;
 
 fn main() {
     let f = env::args()
@@ -20,6 +23,7 @@ fn main() {
                 "6" => day06::main,
                 "7" => day07::main,
                 "8" => day08::main,
+                "9" => day09::main,
                 _ => {
                     eprintln!("Unimplmented day {}", num);
                     return None;

@@ -1,8 +1,9 @@
 use crate::util::digits::DigitsRev;
 use std::collections::VecDeque;
 use std::convert::TryFrom;
-use std::convert::TryInto;
 use std::ops;
+use num_bigint::BigInt;
+use num_traits::identities::{One, Zero};
 
 const DEBUG: bool = false;
 
@@ -52,7 +53,7 @@ pub enum Stopped {
 
 pub type Error = String;
 pub type Result<T> = std::result::Result<T, Error>;
-pub type Value = i32;
+pub type Value = BigInt;
 
 const OPCODE_ADD: u8 = 1;
 const OPCODE_MUL: u8 = 2;
@@ -94,9 +95,6 @@ struct Instruction {
     opcode: OpCode,
     parameter_modes: ParameterModes,
 }
-
-pub const MAX_NOUN: Value = 99;
-pub const MAX_VERB: Value = 99;
 
 type BinaryOp = fn(Value, Value) -> Value;
 type CmpOp = fn(Value, Value) -> bool;
@@ -235,11 +233,11 @@ impl IntCode {
     }
 
     fn op_jump_if_true(&mut self, modes: ParameterModes) -> Result<Going> {
-        self.jump_op(modes, |v| v != 0)
+        self.jump_op(modes, |v| v != Value::zero())
     }
 
     fn op_jump_if_false(&mut self, modes: ParameterModes) -> Result<Going> {
-        self.jump_op(modes, |v| v == 0)
+        self.jump_op(modes, |v| v == Value::zero())
     }
 
     fn op_less_than(&mut self, modes: ParameterModes) -> Result<Going> {
@@ -278,7 +276,7 @@ impl IntCode {
             self.get_params3(modes.get(0), modes.get(1), ParameterMode::Immediate)?;
         let dest_index = to_usize(dest_index)?;
         let dest = self.get_mut(dest_index)?;
-        let value = if op(op1, op2) { 1 } else { 0 };
+        let value = if op(op1, op2) { Value::one() } else { Value::zero() };
         *dest = value;
         Ok(Going::Continue)
     }
@@ -330,7 +328,7 @@ impl IntCode {
         let value = match mode {
             ParameterMode::Position => self
                 .get(to_usize(value)?)
-                .map_err(|_| format!("Param index {} out of bound", value))?,
+                .map_err(|_| "Param index out of bound".to_string())?,
             ParameterMode::Immediate => value,
         };
         Ok(value)
@@ -343,7 +341,7 @@ impl IntCode {
     }
 
     fn get(&self, index: usize) -> Result<Value> {
-        get(&self.memory, index)
+        get(&self.memory, index).clone()
     }
 
     fn get_mut(&mut self, index: usize) -> Result<&mut Value> {
@@ -388,21 +386,21 @@ impl Product {
     }
 
     pub fn get_output(&self, index: usize) -> Result<Value> {
-        get(&self.memory, index)
+        get(&self.memory, index).clone()
     }
 
     #[allow(dead_code)]
     pub fn first_output(&self) -> Result<Value> {
         self.outputs
             .first()
-            .copied()
+            .cloned()
             .ok_or_else(|| "No outputs".to_string())
     }
 
     pub fn last_output(&self) -> Result<Value> {
         self.outputs
             .last()
-            .copied()
+            .cloned()
             .ok_or_else(|| "No outputs".to_string())
     }
 }
@@ -418,18 +416,19 @@ impl ParameterModes {
 
 fn get<T>(slice: &[T], index: usize) -> Result<T>
 where
-    T: Copy,
+    T: Clone,
 {
     slice
         .get(index)
-        .copied()
+        .cloned()
         .ok_or(format!("Index {} out of bounds", index))
 }
 
 fn to_usize(input: Value) -> Result<usize> {
+    use num_traits::cast::ToPrimitive;
     input
-        .try_into()
-        .map_err(|_| format!("Cannot convert {} to usize", input))
+        .to_usize()
+        .ok_or_else(|| format!("Cannot convert {} to usize", input))
 }
 
 impl std::str::FromStr for IntCode {

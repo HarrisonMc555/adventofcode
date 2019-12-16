@@ -2,12 +2,12 @@ use num_traits::*;
 use std::fmt::Debug;
 
 pub trait DigitNum:
-    Num + NumRef + NumOps + NumAssignOps + FromPrimitive + ToPrimitive + Ord + Debug + Copy
+    Num + NumRef + NumOps + NumAssignOps + FromPrimitive + ToPrimitive + Ord + Debug + Clone
 {
 }
 
 impl<T> DigitNum for T where
-    T: Num + NumRef + NumOps + NumAssignOps + FromPrimitive + ToPrimitive + Ord + Debug + Copy
+    T: Num + NumRef + NumOps + NumAssignOps + FromPrimitive + ToPrimitive + Ord + Debug + Clone
 {
 }
 
@@ -48,9 +48,9 @@ where
 
     fn new(n: T, base: u8) -> Self {
         let base = T::from_u8(base).unwrap();
-        let mut divisor = one();
-        while n >= divisor * base {
-            divisor *= base;
+        let mut divisor = T::one();
+        while n >= divisor.clone() * &base {
+            divisor *= base.clone();
         }
         Digits { n, divisor, base }
     }
@@ -99,9 +99,9 @@ where
         if self.divisor == zero() {
             return None;
         }
-        let v = (self.n / self.divisor).to_u8().unwrap();
-        self.n %= self.divisor;
-        self.divisor /= self.base;
+        let v = (self.n.clone() / self.divisor.clone()).to_u8().unwrap();
+        self.n %= self.divisor.clone();
+        self.divisor /= self.base.clone();
         Some(v)
     }
 }
@@ -122,8 +122,8 @@ where
             }
         }
         self.started = true;
-        let v = (self.n % self.base).to_u8().unwrap();
-        self.n /= self.base;
+        let v = (self.n.clone() % self.base.clone()).to_u8().unwrap();
+        self.n /= self.base.clone();
         Some(v)
     }
 }
