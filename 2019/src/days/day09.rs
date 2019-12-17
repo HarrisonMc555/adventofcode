@@ -27,8 +27,11 @@ fn solve1(input: &str) -> Result<Value> {
     }
 }
 
-fn solve2(_input: &str) -> Result<Value> {
-    Err(String::new())
+fn solve2(input: &str) -> Result<Value> {
+    Ok(IntCode::from_str(input)?
+        .with_inputs(vec![Value::from(2)])
+        .run()?
+        .first_output()?)
 }
 
 #[cfg(test)]
