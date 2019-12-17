@@ -1,8 +1,8 @@
 use crate::util::digits::DigitsRev;
-use std::collections::VecDeque;
-use std::convert::TryFrom;
 use num_bigint::BigInt;
 use num_traits::identities::{One, Zero};
+use std::collections::{HashMap, VecDeque};
+use std::convert::TryFrom;
 
 const DEBUG: bool = false;
 
@@ -25,15 +25,16 @@ macro_rules! debug {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct IntCode {
-    memory: Vec<Value>,
+    memory: HashMap<usize, Value>,
     index: usize,
     inputs: VecDeque<Value>,
     outputs: VecDeque<Value>,
+    relative_base: Value,
 }
 
 #[derive(Debug)]
 pub struct Product {
-    memory: Vec<Value>,
+    memory: HashMap<usize, Value>,
     outputs: Vec<Value>,
 }
 
@@ -62,6 +63,7 @@ const OPCODE_JUMP_IF_TRUE: u8 = 5;
 const OPCODE_JUMP_IF_FALSE: u8 = 6;
 const OPCODE_LESS_THAN: u8 = 7;
 const OPCODE_EQUALS: u8 = 8;
+const OPCODE_ADJUST_RELATIVE_BASE: u8 = 9;
 const OPCODE_HALT: u8 = 99;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -74,16 +76,19 @@ enum OpCode {
     JumpIfFalse,
     LessThan,
     Equals,
+    AdjustRelativeBase,
     Halt,
 }
 
 const MODE_POSITION: u8 = 0;
 const MODE_IMMEDIATE: u8 = 1;
+const MODE_RELATIVE: u8 = 2;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum ParameterMode {
     Position,
     Immediate,
+    Relative,
 }
 
 #[derive(Debug)]
@@ -106,10 +111,11 @@ impl IntCode {
 
     fn new(memory: Vec<Value>) -> Self {
         IntCode {
-            memory,
+            memory: memory.into_iter().enumerate().collect(),
             index: 0,
             inputs: VecDeque::new(),
             outputs: VecDeque::new(),
+            relative_base: Value::from(0),
         }
     }
 
@@ -173,14 +179,14 @@ impl IntCode {
     }
 
     fn alter(&mut self, noun: &Value, verb: &Value) -> Result<()> {
-        *self.get_mut(1)? = noun.clone();
-        *self.get_mut(2)? = verb.clone();
+        *self.get_mut(1) = noun.clone();
+        *self.get_mut(2) = verb.clone();
         Ok(())
     }
 
     fn step(&mut self) -> Result<Going> {
-        let value = self.next_value()?;
-        debug!(&value);
+        let value = self.next_value();
+        debug!(&value.to_string());
         let instruction = Instruction::try_from(&value)?;
         debug!(&instruction);
         self.execute(instruction)
@@ -197,6 +203,7 @@ impl IntCode {
             OpCode::JumpIfFalse => self.op_jump_if_false(modes),
             OpCode::LessThan => self.op_less_than(modes),
             OpCode::Equals => self.op_equals(modes),
+            OpCode::AdjustRelativeBase => self.op_adjust_relative_base(modes),
             OpCode::Halt => Ok(Going::Stop),
         }
     }
@@ -209,7 +216,7 @@ impl IntCode {
         self.binary_op(modes, |x, y| x * y)
     }
 
-    fn op_input(&mut self, _modes: ParameterModes) -> Result<Going> {
+    fn op_input(&mut self, modes: ParameterModes) -> Result<Going> {
         let input = match self.inputs.pop_front() {
             Some(v) => v,
             None => {
@@ -218,16 +225,13 @@ impl IntCode {
                 return Ok(Going::NeedInput);
             }
         };
-        let (param_index,) = self.get_params1(ParameterMode::Immediate)?;
-        let param_index = to_usize(&param_index)?;
-        let dest = self.get_mut(param_index)?;
+        let (dest,) = self.get_param_dest(modes.get(0))?;
         *dest = input;
         Ok(Going::Continue)
     }
 
     fn op_output(&mut self, modes: ParameterModes) -> Result<Going> {
         let (value,) = self.get_params1(modes.get(0))?;
-        let value = value.clone();
         self.outputs.push_back(value);
         Ok(Going::Continue)
     }
@@ -248,10 +252,14 @@ impl IntCode {
         self.cmp_op(modes, |x, y| x == y)
     }
 
+    fn op_adjust_relative_base(&mut self, modes: ParameterModes) -> Result<Going> {
+        let (value,) = self.get_params1(modes.get(0))?;
+        self.relative_base += value;
+        Ok(Going::Continue)
+    }
+
     fn jump_op(&mut self, modes: ParameterModes, op: UnaryBoolOp) -> Result<Going> {
         let (value, dest_index) = self.get_params2(modes.get(0), modes.get(1))?;
-        let value = value.clone();
-        let dest_index = dest_index.clone();
         if op(&value) {
             self.do_jump(&dest_index)
         } else {
@@ -265,26 +273,31 @@ impl IntCode {
     }
 
     fn binary_op(&mut self, modes: ParameterModes, op: BinaryOp) -> Result<Going> {
-        let (op1, op2, dest_index) =
-            self.get_params3(modes.get(0), modes.get(1), ParameterMode::Immediate)?;
-        let dest_index = to_usize(&dest_index)?;
-        let dest = self.get_mut(dest_index)?;
+        let (op1, op2, dest) =
+            self.get_params2and_dest(modes.get(0), modes.get(1), modes.get(2))?;
         *dest = op(&op1, &op2);
         Ok(Going::Continue)
     }
 
     fn cmp_op(&mut self, modes: ParameterModes, op: CmpOp) -> Result<Going> {
-        let (op1, op2, dest_index) =
-            self.get_params3(modes.get(0), modes.get(1), ParameterMode::Immediate)?;
-        let dest_index = to_usize(&dest_index)?;
-        let dest = self.get_mut(dest_index)?;
-        let value = if op(&op1, &op2) { Value::one() } else { Value::zero() };
+        let (op1, op2, dest) =
+            self.get_params2and_dest(modes.get(0), modes.get(1), modes.get(2))?;
+        let value = if op(&op1, &op2) {
+            Value::one()
+        } else {
+            Value::zero()
+        };
         *dest = value;
         Ok(Going::Continue)
     }
 
     fn get_params1(&mut self, mode1: ParameterMode) -> Result<(Value,)> {
-        let param1 = self.next_param(mode1)?.clone();
+        let param1 = self.next_param(mode1)?;
+        Ok((param1,))
+    }
+
+    fn get_param_dest(&mut self, mode1: ParameterMode) -> Result<(&mut Value,)> {
+        let param1 = self.next_param_dest(mode1)?;
         Ok((param1,))
     }
 
@@ -293,20 +306,33 @@ impl IntCode {
         mode1: ParameterMode,
         mode2: ParameterMode,
     ) -> Result<(Value, Value)> {
-        let param1 = self.next_param(mode1)?.clone();
-        let param2 = self.next_param(mode2)?.clone();
+        let param1 = self.next_param(mode1)?;
+        let param2 = self.next_param(mode2)?;
         Ok((param1, param2))
     }
 
+    fn get_params2and_dest(
+        &mut self,
+        mode1: ParameterMode,
+        mode2: ParameterMode,
+        mode3: ParameterMode,
+    ) -> Result<(Value, Value, &mut Value)> {
+        let param1 = self.next_param(mode1)?;
+        let param2 = self.next_param(mode2)?;
+        let param3 = self.next_param_dest(mode3)?;
+        Ok((param1, param2, param3))
+    }
+
+    #[allow(dead_code)]
     fn get_params3(
         &mut self,
         mode1: ParameterMode,
         mode2: ParameterMode,
         mode3: ParameterMode,
     ) -> Result<(Value, Value, Value)> {
-        let param1 = self.next_param(mode1)?.clone();
-        let param2 = self.next_param(mode2)?.clone();
-        let param3 = self.next_param(mode3)?.clone();
+        let param1 = self.next_param(mode1)?;
+        let param2 = self.next_param(mode2)?;
+        let param3 = self.next_param(mode3)?;
         Ok((param1, param2, param3))
     }
 
@@ -318,39 +344,45 @@ impl IntCode {
         mode3: ParameterMode,
         mode4: ParameterMode,
     ) -> Result<(Value, Value, Value, Value)> {
-        let param1 = self.next_param(mode1)?.clone();
-        let param2 = self.next_param(mode2)?.clone();
-        let param3 = self.next_param(mode3)?.clone();
-        let param4 = self.next_param(mode4)?.clone();
+        let param1 = self.next_param(mode1)?;
+        let param2 = self.next_param(mode2)?;
+        let param3 = self.next_param(mode3)?;
+        let param4 = self.next_param(mode4)?;
         Ok((param1, param2, param3, param4))
     }
 
     fn next_param(&mut self, mode: ParameterMode) -> Result<Value> {
-        let value = self.next_value()?.clone();
+        let value = self.next_value().clone();
         let value = match mode {
-            ParameterMode::Position => self
-                .get(to_usize(&value)?)
-                .map(|v| v.clone())
-                .map_err(|_| "Param index out of bound".to_string())?,
-            ParameterMode::Immediate => value.clone(),
+            ParameterMode::Position => self.get(to_usize(&value)?),
+            ParameterMode::Immediate => value,
+            ParameterMode::Relative => self.get(to_usize(&(&value + &self.relative_base))?),
         };
         Ok(value)
     }
 
-    fn next_value(&mut self) -> Result<Value> {
-        let value = self.get(self.index)?.clone();
-        self.index += 1;
+    fn next_param_dest(&mut self, mode: ParameterMode) -> Result<&mut Value> {
+        let value = self.next_value();
+        let value = match mode {
+            ParameterMode::Position => self.get_mut(to_usize(&value)?),
+            ParameterMode::Immediate => return Err("Destination in immediate mode".to_string()),
+            ParameterMode::Relative => self.get_mut(to_usize(&(&value + &self.relative_base))?),
+        };
         Ok(value)
     }
 
-    fn get(&self, index: usize) -> Result<&Value> {
-        get(&self.memory, index)
+    fn next_value(&mut self) -> Value {
+        let value = self.get(self.index).clone();
+        self.index += 1;
+        value
     }
 
-    fn get_mut(&mut self, index: usize) -> Result<&mut Value> {
-        self.memory
-            .get_mut(index)
-            .ok_or("index out of bounds".to_string())
+    fn get(&mut self, index: usize) -> Value {
+        self.memory.entry(index).or_insert(Value::zero()).clone()
+    }
+
+    fn get_mut(&mut self, index: usize) -> &mut Value {
+        self.memory.entry(index).or_insert(Value::zero())
     }
 
     #[allow(dead_code)]
@@ -359,7 +391,7 @@ impl IntCode {
             return;
         }
         eprintln!("memory = [");
-        for (i, v) in self.memory.iter().enumerate() {
+        for (&i, v) in self.memory.iter() {
             let cur_marker = if i == self.index { " <--" } else { "" };
             eprintln!("\t[{:>3}] = {}{}", i, v, cur_marker);
         }
@@ -371,7 +403,7 @@ impl IntCode {
 }
 
 impl Product {
-    pub fn new(memory: Vec<Value>, outputs: VecDeque<Value>) -> Self {
+    pub fn new(memory: HashMap<usize, Value>, outputs: VecDeque<Value>) -> Self {
         Product {
             memory,
             outputs: Vec::from(debug!(outputs)),
@@ -379,7 +411,7 @@ impl Product {
     }
 
     #[allow(dead_code)]
-    pub fn memory(&self) -> &[Value] {
+    pub fn memory(&self) -> &HashMap<usize, Value> {
         &self.memory
     }
 
@@ -417,10 +449,9 @@ impl ParameterModes {
     }
 }
 
-fn get<T>(slice: &[T], index: usize) -> Result<&T>
-{
+fn get<T>(slice: &HashMap<usize, T>, index: usize) -> Result<&T> {
     slice
-        .get(index)
+        .get(&index)
         .ok_or(format!("Index {} out of bounds", index))
 }
 
@@ -475,6 +506,7 @@ impl TryFrom<u8> for OpCode {
             OPCODE_LESS_THAN => OpCode::LessThan,
             OPCODE_EQUALS => OpCode::Equals,
             OPCODE_HALT => OpCode::Halt,
+            OPCODE_ADJUST_RELATIVE_BASE => OpCode::AdjustRelativeBase,
             _ => return Err(format!("Invalid opcode {}", value)),
         };
         Ok(opcode)
@@ -488,6 +520,7 @@ impl TryFrom<u8> for ParameterMode {
         let mode = match value {
             MODE_POSITION => ParameterMode::Position,
             MODE_IMMEDIATE => ParameterMode::Immediate,
+            MODE_RELATIVE => ParameterMode::Relative,
             _ => return Err(format!("Invalid opcode {}", value)),
         };
         Ok(mode)

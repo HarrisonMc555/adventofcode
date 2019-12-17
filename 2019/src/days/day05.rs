@@ -52,7 +52,7 @@ mod test {
             .iter()
             .map(|&x| Value::from(x))
             .collect::<Vec<_>>();
-        assert_eq!(product.memory().to_vec(), expected_memory);
+        assert_eq!(memory_to_vec(product.memory()), expected_memory);
         Ok(())
     }
 
@@ -174,5 +174,12 @@ mod test {
     #[test]
     fn answer01b() {
         assert_eq!(solve2(INPUT), Ok(Value::from(3188550)));
+    }
+
+    use std::collections::HashMap;
+    fn memory_to_vec(memory: &HashMap<usize, Value>) -> Vec<Value> {
+        (0..memory.len())
+            .map(|i| memory.get(&i).cloned().unwrap_or_else(|| Value::from(0)))
+            .collect()
     }
 }
