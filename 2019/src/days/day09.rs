@@ -71,4 +71,14 @@ mod test {
         );
         Ok(())
     }
+
+    #[test]
+    fn answer1() {
+        assert_eq!(solve1(INPUT), Ok("3235019597".parse().unwrap()));
+    }
+
+    #[test]
+    fn answer2() {
+        assert_eq!(solve2(INPUT), Ok(Value::from(80274)));
+    }
 }

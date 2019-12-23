@@ -50,7 +50,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn answer02a() {
+    fn answer1() {
         assert_eq!(
             solve1(INPUT, &*DEFAULT_NOUN, &*DEFAULT_VERB),
             Ok(Value::from(6568671))
@@ -58,7 +58,7 @@ mod test {
     }
 
     #[test]
-    fn answer02b() {
+    fn answer2() {
         assert_eq!(solve2(INPUT, &*OUTPUT_GOAL), Ok(Value::from(3951)));
     }
 }

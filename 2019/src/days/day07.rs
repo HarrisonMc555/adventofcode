@@ -213,17 +213,17 @@ mod test {
         assert_eq!(actual, expected);
     }
 
+    fn value_vec(values: &[u32]) -> Vec<Value> {
+        values.iter().map(|&x| Value::from(x)).collect()
+    }
+
     #[test]
-    fn answer01a() {
+    fn answer1() {
         assert_eq!(solve1(INPUT), Ok(Value::from(38500)));
     }
 
     #[test]
-    fn answer01b() {
+    fn answer2() {
         assert_eq!(solve2(INPUT), Ok(Value::from(33660560)));
-    }
-
-    fn value_vec(values: &[u32]) -> Vec<Value> {
-        values.iter().map(|&x| Value::from(x)).collect()
     }
 }

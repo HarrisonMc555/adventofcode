@@ -139,12 +139,12 @@ mod test {
     }
 
     #[test]
-    fn answer01a() {
+    fn answer1() {
         assert_eq!(solve1(INPUT), Ok(579));
     }
 
     #[test]
-    fn answer01b() {
+    fn answer2() {
         assert_eq!(solve2(INPUT), Ok(358));
     }
 }

@@ -22,11 +22,10 @@ struct Dimensions {
 }
 
 pub fn main() {
-    let answer1 = solve1(INPUT, default_dimensions());
-    println!("{:?}", answer1);
-    // let answer2 = solve2(INPUT, default_dimensions());
-    let _ = solve2(INPUT, default_dimensions());
-    // println!("{:?}", answer2);
+    let answer1 = solve1(INPUT, default_dimensions()).unwrap();
+    println!("{}", answer1);
+    let answer2 = solve2(INPUT, default_dimensions()).unwrap();
+    print_message(&answer2);
 }
 
 fn solve1(input: &str, dimensions: Dimensions) -> Result<Value> {
@@ -40,11 +39,10 @@ fn solve1(input: &str, dimensions: Dimensions) -> Result<Value> {
     Ok(num_ones * num_twos)
 }
 
-fn solve2(input: &str, dimensions: Dimensions) -> Result<()> {
+fn solve2(input: &str, dimensions: Dimensions) -> Result<Array2D<Value>> {
     let image = parse_input(input, dimensions)?;
     let merged_layer = merge_layers(&image);
-    print_message(&merged_layer);
-    Ok(())
+    Ok(merged_layer)
 }
 
 fn count_in_layer(layer: &Array2D<Value>, goal: Value) -> usize {
@@ -125,4 +123,19 @@ impl Dimensions {
 
 fn default_dimensions() -> Dimensions {
     Dimensions::new(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn answer1() {
+        assert_eq!(solve1(INPUT, default_dimensions()), Ok(1072));
+    }
+
+    #[test]
+    fn answer2() {
+        // Need to look at the message, so no testing here
+    }
 }

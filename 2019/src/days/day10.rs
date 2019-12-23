@@ -185,12 +185,12 @@ mod test {
     use super::*;
 
     #[test]
-    fn answer10a() {
+    fn answer1() {
         assert_eq!(solve1(INPUT), Ok(284));
     }
 
     #[test]
-    fn answer10b() {
+    fn answer2() {
         assert_eq!(solve2(INPUT), Ok(404));
     }
 }

@@ -167,12 +167,12 @@ mod test {
     }
 
     #[test]
-    fn answer01a() {
+    fn answer1() {
         assert_eq!(solve1(INPUT), Ok(Value::from(6069343)));
     }
 
     #[test]
-    fn answer01b() {
+    fn answer2() {
         assert_eq!(solve2(INPUT), Ok(Value::from(3188550)));
     }
 
