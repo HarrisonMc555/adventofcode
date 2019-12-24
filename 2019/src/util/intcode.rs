@@ -526,3 +526,267 @@ impl TryFrom<u8> for ParameterMode {
         Ok(mode)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn day02_example1() -> Result<()> {
+        test_memories(
+            "1,9,10,3,2,3,11,0,99,30,40,50",
+            &[3500, 9, 10, 70, 2, 3, 11, 0, 99, 30, 40, 50],
+        )
+    }
+
+    #[test]
+    fn day02_example2() -> Result<()> {
+        test_memories("1,0,0,0,99", &[2, 0, 0, 0, 99])
+    }
+
+    #[test]
+    fn day02_example3() -> Result<()> {
+        test_memories("2,4,4,5,99,0", &[2, 4, 4, 5, 99, 9801])
+    }
+
+    #[test]
+    fn day02_example4() -> Result<()> {
+        test_memories("1,1,1,4,99,5,6,0,99", &[30, 1, 1, 4, 2, 5, 6, 0, 99])
+    }
+
+    #[test]
+    fn input_output() -> Result<()> {
+        let program = IntCode::from_str("3,0,4,0,99")?;
+        for input in &[1, 2, 3, 7, 100, 0, -101, 9999] {
+            let input = Value::from(*input);
+            let output = program
+                .clone()
+                .with_inputs(vec![input.clone()])
+                .run()?
+                .last_output()?;
+            assert_eq!(output, input);
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn immediate() -> Result<()> {
+        let product = IntCode::from_str("1002,4,3,4,33")?.run()?;
+        let expected_memory: Vec<Value> = [1002, 4, 3, 4, 99]
+            .iter()
+            .map(|&x| Value::from(x))
+            .collect::<Vec<_>>();
+        assert_eq!(memory_to_vec(product.memory()), expected_memory);
+        Ok(())
+    }
+
+    #[test]
+    fn immediate_negative() -> Result<()> {
+        test_memories("1101,100,-1,4,0", &[1101, 100, -1, 4, 99])
+    }
+
+    #[test]
+    fn equal_position_mode() -> Result<()> {
+        let program_str = "3,9,8,9,10,9,4,9,99,-1,8";
+        let target = Value::from(8);
+        let output_eq_target = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone()])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_eq_target, Value::from(1));
+        let output_not_eq_target1 = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone() + 1])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_not_eq_target1, Value::from(0));
+        let output_not_eq_target2 = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone() - 1])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_not_eq_target2, Value::from(0));
+        Ok(())
+    }
+
+    #[test]
+    fn less_than_position_mode() -> Result<()> {
+        let program_str = "3,9,7,9,10,9,4,9,99,-1,8";
+        let target = Value::from(8);
+        let output_eq_target = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone()])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_eq_target, Value::from(0));
+        let output_less_than_target = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone() - 1])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_less_than_target, Value::from(1));
+        let output_greater_than_target = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone() + 1])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_greater_than_target, Value::from(0));
+        Ok(())
+    }
+
+    #[test]
+    fn equal_immediate_mode() -> Result<()> {
+        let program_str = "3,3,1108,-1,8,3,4,3,99";
+        let target = Value::from(8);
+        let output_eq_target = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone()])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_eq_target, Value::from(1));
+        let output_not_eq_target1 = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone() + 1])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_not_eq_target1, Value::from(0));
+        let output_not_eq_target2 = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone() - 1])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_not_eq_target2, Value::from(0));
+        Ok(())
+    }
+
+    #[test]
+    fn less_than_immediate_mode() -> Result<()> {
+        let program_str = "3,3,1107,-1,8,3,4,3,99";
+        let target = Value::from(8);
+        let output_eq_target = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone()])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_eq_target, Value::from(0));
+        let output_less_than_target = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone() - 1])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_less_than_target, Value::from(1));
+        let output_greater_than_target = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone() + 1])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_greater_than_target, Value::from(0));
+        Ok(())
+    }
+
+    #[test]
+    fn jump_position_mode() -> Result<()> {
+        let program_str = "3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9";
+        let target = Value::from(0);
+        let output_eq_target = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone()])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_eq_target, Value::from(0));
+        let output_not_eq_target1 = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone() + 1])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_not_eq_target1, Value::from(1));
+        let output_not_eq_target2 = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone() + 7])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_not_eq_target2, Value::from(1));
+        Ok(())
+    }
+
+    #[test]
+    fn jump_immediate_mode() -> Result<()> {
+        let program_str = "3,3,1105,-1,9,1101,0,0,12,4,12,99,1";
+        let target = Value::from(0);
+        let output_eq_target = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone()])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_eq_target, Value::from(0));
+        let output_not_eq_target1 = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone() + 1])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_not_eq_target1, Value::from(1));
+        let output_not_eq_target2 = IntCode::from_str(program_str)?
+            .with_inputs(vec![target.clone() + 7])
+            .run()?
+            .last_output()?;
+        assert_eq!(output_not_eq_target2, Value::from(1));
+        Ok(())
+    }
+
+    #[test]
+    fn jump_large_example() -> Result<()> {
+        let input_str = "3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99";
+        for value_less_than_8 in &[1, 2, 3, 7, 0, -1, -4, -999] {
+            let input = Value::from(*value_less_than_8);
+            expect_output(input_str, input, Value::from(999))?;
+        }
+        expect_output(input_str, Value::from(8), Value::from(1000))?;
+        for value_greater_than_8 in &[9, 10, 11, 40, 999] {
+            let input = Value::from(*value_greater_than_8);
+            expect_output(input_str, input, Value::from(1001))?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_day09_example1() -> Result<()> {
+        let program = "109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99";
+        let product = IntCode::from_str(program)?.run()?;
+        let memory = product.memory();
+        let memory_as_str = (0..16)
+            .map(|i| memory.get(&i).cloned().unwrap_or_else(|| Value::from(0)))
+            .map(|v| v.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        assert_eq!(memory_as_str, program);
+        Ok(())
+    }
+
+    #[test]
+    fn test_day09_example2() -> Result<()> {
+        let program = "1102,34915192,34915192,7,4,7,99,0";
+        let output = IntCode::from_str(program)?.run()?.first_output()?;
+        let num_digits = output.to_string().chars().count();
+        assert_eq!(num_digits, 16);
+        Ok(())
+    }
+
+    #[test]
+    fn test_day09_example3() -> Result<()> {
+        let program = "104,1125899906842624,99";
+        let output = IntCode::from_str(program)?.run()?.first_output()?;
+        assert_eq!(
+            output,
+            "1125899906842624".parse().map_err(|_| "Cannot parse")?
+        );
+        Ok(())
+    }
+
+    fn expect_output(input_str: &str, input_value: Value, output_value: Value) -> Result<()> {
+        let output = IntCode::from_str(input_str)?
+            .with_inputs(vec![input_value])
+            .run()?
+            .first_output()?;
+        assert_eq!(output, output_value);
+        Ok(())
+    }
+
+    fn test_memories(input: &str, memory: &[i32]) -> Result<()> {
+        let product = IntCode::from_str(input)?.run()?;
+        let expected_memory: Vec<Value> =
+            memory.iter().map(|&x| Value::from(x)).collect::<Vec<_>>();
+        assert_eq!(memory_to_vec(product.memory()), expected_memory);
+        Ok(())
+    }
+
+    use std::collections::HashMap;
+    fn memory_to_vec(memory: &HashMap<usize, Value>) -> Vec<Value> {
+        (0..memory.len())
+            .map(|i| memory.get(&i).cloned().unwrap_or_else(|| Value::from(0)))
+            .collect()
+    }
+}
