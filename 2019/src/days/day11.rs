@@ -4,7 +4,6 @@ use std::convert::TryFrom;
 use std::fmt;
 
 const INPUT: &str = include_str!("../../static/day11.txt");
-const DEBUG: bool = true;
 
 type Location = (isize, isize);
 
@@ -67,22 +66,8 @@ impl Robot {
 
     pub fn num_painted(mut self) -> Result<usize> {
         let mut seen = HashSet::new();
-        let mut count = 0;
         loop {
-            count += 1;
-            if count > 25 {
-                break;
-            }
             let color = self.grid.get(&self.loc).unwrap_or(&Color::Black).clone();
-            if DEBUG {
-                println!("Seen {}", seen.len());
-                // let mut seen_vec = seen.iter().collect::<Vec<_>>();
-                // seen_vec.sort_unstable();
-                // println!("\t{:?}", &seen_vec);
-                self.print_grid();
-                println!("Input: {:?} ({})", color, color.value());
-                println!();
-            }
             self.program.push_input(&color.value());
             match self.program.run_blocking_input()? {
                 Stopped::NeedInput(p) => {
@@ -184,7 +169,7 @@ impl Direction {
         let new = match self {
             Direction::North => Direction::West,
             Direction::East => Direction::North,
-            Direction::South => Direction::West,
+            Direction::South => Direction::East,
             Direction::West => Direction::South,
         };
         *self = new;
