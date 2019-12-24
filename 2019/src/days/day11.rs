@@ -42,16 +42,24 @@ struct Robot {
 }
 
 pub fn main() {
-    let answer1 = solve1(INPUT);
-    println!("{:?}", answer1);
-    // let answer2 = solve2(INPUT);
-    // println!("{:?}", answer2);
+    let answer1 = solve1(INPUT).unwrap();
+    println!("{}", answer1);
+    let grid = solve2(INPUT).unwrap();
+    let radius = 25;
+    print_grid(&grid, radius);
 }
 
 fn solve1(input: &str) -> Result<usize> {
     let program = IntCode::from_str(input)?;
     let robot = Robot::new(program);
     robot.num_painted()
+}
+
+fn solve2(input: &str) -> Result<HashMap<Location, Color>> {
+    let program = IntCode::from_str(input)?;
+    let mut robot = Robot::new(program);
+    robot.paint_tile((0, 0), Color::White);
+    robot.run_to_grid()
 }
 
 impl Robot {
@@ -61,6 +69,25 @@ impl Robot {
             loc: (0, 0),
             dir: Direction::North,
             grid: HashMap::new(),
+        }
+    }
+
+    pub fn run_to_grid(mut self) -> Result<HashMap<Location, Color>> {
+        loop {
+            let color = self.grid.get(&self.loc).unwrap_or(&Color::Black).clone();
+            self.program.push_input(&color.value());
+            match self.program.run_blocking_input()? {
+                Stopped::NeedInput(p) => {
+                    self.program = p;
+                }
+                Stopped::Complete(_) => {
+                    return Ok(self.grid);
+                }
+            }
+            let paint_command = self.program.pop_output()?;
+            let turn_command = self.program.pop_output()?;
+            self.run_paint_command(&paint_command)?;
+            self.run_turn_command(&turn_command)?;
         }
     }
 
@@ -84,6 +111,10 @@ impl Robot {
         Ok(seen.len())
     }
 
+    pub fn paint_tile(&mut self, location: Location, color: Color) {
+        self.grid.insert(location, color);
+    }
+
     fn run_paint_command(&mut self, paint_command: &Value) -> Result<()> {
         let color = Color::try_from(paint_command)?;
         self.grid.insert(self.loc, color);
@@ -105,27 +136,6 @@ impl Robot {
             Direction::South => (x, y - 1),
             Direction::West => (x - 1, y),
         };
-    }
-
-    #[allow(dead_code)]
-    fn print_grid(&self) {
-        let (min, max) = (-10, 10);
-        for y in (min..=max).rev() {
-            for x in min..=max {
-                let loc = (x, y);
-                let c = if loc == self.loc {
-                    self.dir.to_string()
-                } else {
-                    let color = self.grid.get(&loc).unwrap_or(&Color::Black);
-                    match color {
-                        Color::Black => ".",
-                        Color::White => "#",
-                    }.to_string()
-                };
-                print!("{}", c);
-            }
-            println!();
-        }
     }
 }
 
@@ -204,5 +214,32 @@ impl fmt::Display for Direction {
             Direction::West => "<",
         };
         write!(f, "{}", c)
+    }
+}
+
+fn print_grid(grid: &HashMap<Location, Color>, radius: isize) {
+    let max = radius.abs();
+    let min = -max;
+    for y in (min..=max).rev() {
+        for x in min..=max {
+            let loc = (x, y);
+            let color = grid.get(&loc).unwrap_or(&Color::Black);
+            let c = match color {
+                Color::Black => ".",
+                Color::White => "#",
+            };
+            print!("{}", c);
+        }
+        println!();
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn answer1() {
+        assert_eq!(solve1(INPUT), Ok(1686));
     }
 }
