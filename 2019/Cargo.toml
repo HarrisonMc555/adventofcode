@@ -12,3 +12,4 @@ array2d = { version = "0.2", git = "https://github.com/HarrisonMc555/array2d.git
 num-bigint = "0.2.3"
 num-iter = "0.1.39"
 lazy_static = "1.4.0"
+regex = "1.3"
