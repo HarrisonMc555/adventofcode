@@ -1,5 +1,6 @@
 use array2d::Array2D;
 use std::collections::HashMap;
+use crate::util::math;
 
 const INPUT: &str = include_str!("../../static/day10.txt");
 
@@ -28,7 +29,9 @@ fn solve1(input: &str) -> Result<Value> {
 fn solve2(input: &str) -> Result<Value> {
     let grid = parse_input(input)?;
     let locations = asteroids_destroyed_in_order(&grid);
-    let (x, y) = locations.get(200 - 1).ok_or_else(|| "Not enough asteroids")?;
+    let (x, y) = locations
+        .get(200 - 1)
+        .ok_or_else(|| "Not enough asteroids")?;
     Ok(100 * x + y)
 }
 
@@ -118,7 +121,7 @@ fn delta((x1, y1): Location, (x2, y2): Location) -> (isize, isize) {
 
 fn reduced_delta(loc1: Location, loc2: Location) -> (isize, isize) {
     let (dx, dy) = delta(loc1, loc2);
-    let divisor = gcd(dx.abs() as usize, dy.abs() as usize) as isize;
+    let divisor = math::gcd(dx.abs() as usize, dy.abs() as usize) as isize;
     let divisor = if divisor == 0 { 1 } else { divisor };
     (dx / divisor, dy / divisor)
 }
@@ -158,15 +161,6 @@ where
 
 fn atan2(x: isize, y: isize) -> f32 {
     std::f32::consts::PI - (x as f32).atan2(y as f32)
-}
-
-fn gcd(mut a: usize, mut b: usize) -> usize {
-    while b != 0 {
-        let t = b;
-        b = a % b;
-        a = t;
-    }
-    a
 }
 
 fn insert_into_sorted_by_key<T, B, F>(vec: &mut Vec<T>, item: T, mut f: F)
