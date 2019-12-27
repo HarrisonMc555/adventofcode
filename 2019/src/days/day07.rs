@@ -22,7 +22,7 @@ fn solve1(input: &str) -> Result<Value> {
         .into_iter()
         .flat_map(|phase_settings| run_amplifiers(program.clone(), &phase_settings).ok())
         .max()
-        .ok_or("No successful runs".to_string())
+        .ok_or_else(|| "No successful runs".to_string())
 }
 
 fn solve2(input: &str) -> Result<Value> {
@@ -32,7 +32,7 @@ fn solve2(input: &str) -> Result<Value> {
         .into_iter()
         .flat_map(|phase_settings| run_amplifiers_feedback(program.clone(), &phase_settings).ok())
         .max()
-        .ok_or("No successful runs".to_string())
+        .ok_or_else(|| "No successful runs".to_string())
 }
 
 fn run_amplifiers(program: IntCode, phase_settings: &[Value]) -> Result<Value> {
@@ -48,7 +48,7 @@ fn run_amplifier(program: IntCode, phase_setting: Value, input_signal: Value) ->
         .with_inputs(vec![phase_setting, input_signal])
         .run()?
         .last_output()?;
-    Ok(output.clone())
+    Ok(output)
 }
 
 fn run_amplifiers_feedback(program: IntCode, phase_settings: &[Value]) -> Result<Value> {

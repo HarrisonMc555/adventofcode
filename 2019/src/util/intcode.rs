@@ -125,7 +125,6 @@ impl IntCode {
             match self.step()? {
                 Going::Continue => {
                     debug!("Continuing");
-                    ()
                 }
                 Going::Stop => {
                     debug!("Stopping");
@@ -144,7 +143,6 @@ impl IntCode {
             match self.step()? {
                 Going::Continue => {
                     debug!("Continuing");
-                    ()
                 }
                 Going::Stop => {
                     debug!("Stopping, complete");
@@ -171,6 +169,10 @@ impl IntCode {
         self.outputs
             .pop_front()
             .ok_or_else(|| "No outputs".to_string())
+    }
+
+    pub fn set_memory(&mut self, index: usize, value: Value) {
+        self.memory.insert(index, value);
     }
 
     pub fn altered(mut self, noun: &Value, verb: &Value) -> Result<Self> {
@@ -352,7 +354,7 @@ impl IntCode {
     }
 
     fn next_param(&mut self, mode: ParameterMode) -> Result<Value> {
-        let value = self.next_value().clone();
+        let value = self.next_value();
         let value = match mode {
             ParameterMode::Position => self.get(to_usize(&value)?),
             ParameterMode::Immediate => value,
@@ -372,17 +374,17 @@ impl IntCode {
     }
 
     fn next_value(&mut self) -> Value {
-        let value = self.get(self.index).clone();
+        let value = self.get(self.index);
         self.index += 1;
         value
     }
 
     fn get(&mut self, index: usize) -> Value {
-        self.memory.entry(index).or_insert(Value::zero()).clone()
+        self.memory.entry(index).or_insert_with(Value::zero).clone()
     }
 
     fn get_mut(&mut self, index: usize) -> &mut Value {
-        self.memory.entry(index).or_insert(Value::zero())
+        self.memory.entry(index).or_insert_with(Value::zero)
     }
 
     #[allow(dead_code)]
@@ -452,7 +454,7 @@ impl ParameterModes {
 fn get<T>(slice: &HashMap<usize, T>, index: usize) -> Result<&T> {
     slice
         .get(&index)
-        .ok_or(format!("Index {} out of bounds", index))
+        .ok_or_else(|| format!("Index {} out of bounds", index))
 }
 
 fn to_usize(input: &Value) -> Result<usize> {
@@ -481,7 +483,7 @@ impl TryFrom<&Value> for Instruction {
 
     fn try_from(value: &Value) -> Result<Self> {
         let mut digits = DigitsRev::decimal(value.clone());
-        let ones = digits.next().ok_or("No opcode found".to_string())?;
+        let ones = digits.next().ok_or_else(|| "No opcode found".to_string())?;
         let tens = digits.next().unwrap_or(0);
         let opcode = tens * 10 + ones;
         let parameter_modes = digits.map(ParameterMode::try_from).collect::<Result<_>>()?;

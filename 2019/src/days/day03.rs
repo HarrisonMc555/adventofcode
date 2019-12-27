@@ -149,7 +149,7 @@ impl Add<Segment> for Position {
     type Output = Self;
 
     fn add(self, segment: Segment) -> Self {
-        let (x, y) = self.tuple().clone();
+        let (x, y) = self.tuple();
         let len = segment.length;
         let (dx, dy) = match segment.direction {
             Direction::Up => (0, len),
@@ -181,7 +181,7 @@ impl Position {
     }
 
     fn intermediate_positions(self, segment: &Segment) -> impl Iterator<Item = Self> + '_ {
-        let (x, y) = self.tuple().clone();
+        let (x, y) = self.tuple();
         let len = segment.length;
         let (beg, end) = match segment.direction {
             Direction::Up => (y + 1, y + len),

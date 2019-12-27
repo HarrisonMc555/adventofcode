@@ -1,6 +1,6 @@
+use crate::util::math;
 use array2d::Array2D;
 use std::collections::HashMap;
-use crate::util::math;
 
 const INPUT: &str = include_str!("../../static/day10.txt");
 
@@ -51,7 +51,7 @@ fn asteroids_destroyed_in_order(grid: &Array2D<Cell>) -> Vec<Location> {
             )
         })
         .fold(HashMap::new(), |mut map, (delta, loc)| {
-            let mut vec = map.entry(delta).or_insert(Vec::new());
+            let mut vec = map.entry(delta).or_insert_with(Vec::new);
             let key_function = |&(x, y): &(isize, isize)| (x.abs(), y.abs());
             insert_into_sorted_by_key(&mut vec, loc, key_function);
             map

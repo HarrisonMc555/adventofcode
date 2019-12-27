@@ -19,7 +19,7 @@ fn solve1(input: &str) -> Result<Value> {
         .with_inputs(PROGRAM_INPUT1.to_vec())
         .run()?
         .last_output()?;
-    Ok(output.clone())
+    Ok(output)
 }
 
 fn solve2(input: &str) -> Result<Value> {
@@ -27,7 +27,7 @@ fn solve2(input: &str) -> Result<Value> {
         .with_inputs(PROGRAM_INPUT2.to_vec())
         .run()?
         .last_output()?;
-    Ok(output.clone())
+    Ok(output)
 }
 
 #[cfg(test)]

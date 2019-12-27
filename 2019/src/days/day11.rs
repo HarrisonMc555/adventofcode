@@ -74,7 +74,7 @@ impl Robot {
 
     pub fn run_to_grid(mut self) -> Result<HashMap<Location, Color>> {
         loop {
-            let color = self.grid.get(&self.loc).unwrap_or(&Color::Black).clone();
+            let color = self.grid.get(&self.loc).unwrap_or(&Color::Black);
             self.program.push_input(&color.value());
             match self.program.run_blocking_input()? {
                 Stopped::NeedInput(p) => {
@@ -94,7 +94,7 @@ impl Robot {
     pub fn num_painted(mut self) -> Result<usize> {
         let mut seen = HashSet::new();
         loop {
-            let color = self.grid.get(&self.loc).unwrap_or(&Color::Black).clone();
+            let color = self.grid.get(&self.loc).unwrap_or(&Color::Black);
             self.program.push_input(&color.value());
             match self.program.run_blocking_input()? {
                 Stopped::NeedInput(p) => {
@@ -197,7 +197,7 @@ impl Direction {
 }
 
 impl Color {
-    fn value(&self) -> Value {
+    fn value(self) -> Value {
         match self {
             Color::Black => BLACK_VALUE.clone(),
             Color::White => WHITE_VALUE.clone(),

@@ -87,7 +87,7 @@ fn construct_tree<T>(mapping: &mut HashMap<T, Vec<T>>, root: T) -> Node<T>
 where
     T: Eq + Hash,
 {
-    let children = mapping.remove(&root).unwrap_or_else(|| Vec::new());
+    let children = mapping.remove(&root).unwrap_or_else(Vec::new);
     let children_nodes = children
         .into_iter()
         .map(|child: T| construct_tree::<T>(mapping, child))
@@ -101,7 +101,7 @@ where
 {
     let mut mapping = HashMap::new();
     for (parent, child) in pairs {
-        let children = mapping.entry(parent).or_insert_with(|| Vec::new());
+        let children = mapping.entry(parent).or_insert_with(Vec::new);
         children.push(child);
     }
     mapping
@@ -113,7 +113,7 @@ fn parse_input(input: &str) -> Result<Vec<(&str, &str)>, Error> {
 
 fn parse_line(line: &str) -> Result<(&str, &str), Error> {
     let words = line.split(')').collect::<Vec<_>>();
-    if let &[w1, w2] = &words[..] {
+    if let [w1, w2] = words[..] {
         Ok((w1, w2))
     } else {
         Err(format!("Invalid line {}", line))

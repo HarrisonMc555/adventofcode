@@ -8,7 +8,7 @@ mod days;
 
 use days::*;
 
-const DEFAULT_FN: fn() = day12::main;
+const DEFAULT_FN: fn() = day13::main;
 
 fn main() {
     let f = env::args()
@@ -27,6 +27,7 @@ fn main() {
                 "10" => day10::main,
                 "11" => day11::main,
                 "12" => day12::main,
+                "13" => day13::main,
                 _ => {
                     eprintln!("Unimplmented day {}", num);
                     return None;

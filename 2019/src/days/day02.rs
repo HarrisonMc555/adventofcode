@@ -9,7 +9,7 @@ lazy_static! {
     static ref MAX_VERB: Value = Value::from(99);
     static ref DEFAULT_NOUN: Value = Value::from(12);
     static ref DEFAULT_VERB: Value = Value::from(2);
-    static ref OUTPUT_GOAL: Value = Value::from(19690720);
+    static ref OUTPUT_GOAL: Value = Value::from(19_690_720);
 }
 
 pub fn main() {
@@ -23,8 +23,7 @@ fn solve1(input: &str, noun: &Value, verb: &Value) -> Result<Value> {
     let output = IntCode::from_str(input)?
         .altered(noun, verb)?
         .run()?
-        .get_memory_at(0)?
-        .clone();
+        .get_memory_at(0)?;
     Ok(output)
 }
 
@@ -53,7 +52,7 @@ mod test {
     fn answer1() {
         assert_eq!(
             solve1(INPUT, &*DEFAULT_NOUN, &*DEFAULT_VERB),
-            Ok(Value::from(6568671))
+            Ok(Value::from(6_568_671))
         );
     }
 
