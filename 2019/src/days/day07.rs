@@ -61,22 +61,22 @@ fn run_amplifiers_feedback(program: IntCode, phase_settings: &[Value]) -> Result
     let last_amplifier_index = programs.len() - 1;
     let mut recent_last_amplifier_output: Option<Value> = None;
     loop {
-        let (i, program) = match programs.pop_front() {
+        let (i, mut program) = match programs.pop_front() {
             Some(some) => some,
             None => {
                 return recent_last_amplifier_output
                     .ok_or_else(|| "Last amplifier never produced output".to_string())
             }
         };
-        let output_signal = match run_amplifier_til_input(program, input_signal)? {
-            Stopped::NeedInput(mut program) => {
+        let output_signal = match run_amplifier_til_input(&mut program, input_signal)? {
+            Stopped::NeedInput => {
                 let output_signal = program.pop_output();
                 programs.push_back((i, program));
                 output_signal?
             }
-            Stopped::Complete(product) => {
+            Stopped::Complete => {
                 // Don't push back on stack, it's done
-                product.last_output()?.clone()
+                program.pop_output()?.clone()
             }
         };
         if i == last_amplifier_index {
@@ -86,7 +86,7 @@ fn run_amplifiers_feedback(program: IntCode, phase_settings: &[Value]) -> Result
     }
 }
 
-fn run_amplifier_til_input(mut program: IntCode, input_signal: Value) -> Result<Stopped> {
+fn run_amplifier_til_input(program: &mut IntCode, input_signal: Value) -> Result<Stopped> {
     program.push_input(&input_signal);
     program.run_blocking_input()
 }

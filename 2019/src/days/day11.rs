@@ -76,13 +76,9 @@ impl Robot {
         loop {
             let color = self.grid.get(&self.loc).unwrap_or(&Color::Black);
             self.program.push_input(&color.value());
-            match self.program.run_blocking_input()? {
-                Stopped::NeedInput(p) => {
-                    self.program = p;
-                }
-                Stopped::Complete(_) => {
-                    return Ok(self.grid);
-                }
+            // if self.program.run_blocking_input()? == Stopped::Complete {
+            if let Stopped::Complete = self.program.run_blocking_input()? {
+                return Ok(self.grid);
             }
             let paint_command = self.program.pop_output()?;
             let turn_command = self.program.pop_output()?;
@@ -96,11 +92,8 @@ impl Robot {
         loop {
             let color = self.grid.get(&self.loc).unwrap_or(&Color::Black);
             self.program.push_input(&color.value());
-            match self.program.run_blocking_input()? {
-                Stopped::NeedInput(p) => {
-                    self.program = p;
-                }
-                Stopped::Complete(_) => break,
+            if let Stopped::Complete = self.program.run_blocking_input()? {
+                break;
             }
             let paint_command = self.program.pop_output()?;
             let turn_command = self.program.pop_output()?;

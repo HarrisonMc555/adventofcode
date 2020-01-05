@@ -30,6 +30,7 @@ pub struct IntCode {
     inputs: VecDeque<Value>,
     outputs: VecDeque<Value>,
     relative_base: Value,
+    is_halted: bool,
 }
 
 #[derive(Debug)]
@@ -45,10 +46,10 @@ enum Going {
     NeedInput,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Stopped {
-    NeedInput(IntCode),
-    Complete(Product),
+    NeedInput,
+    Complete,
 }
 
 pub type Error = String;
@@ -116,6 +117,7 @@ impl IntCode {
             inputs: VecDeque::new(),
             outputs: VecDeque::new(),
             relative_base: Value::from(0),
+            is_halted: false,
         }
     }
 
@@ -137,7 +139,7 @@ impl IntCode {
         Ok(Product::new(self.memory, self.outputs))
     }
 
-    pub fn run_blocking_input(mut self) -> Result<Stopped> {
+    pub fn run_blocking_input(&mut self) -> Result<Stopped> {
         debug!("running blocking");
         loop {
             match self.step()? {
@@ -146,13 +148,22 @@ impl IntCode {
                 }
                 Going::Stop => {
                     debug!("Stopping, complete");
-                    return Ok(Stopped::Complete(Product::new(self.memory, self.outputs)));
+                    return Ok(Stopped::Complete);
                 }
                 Going::NeedInput => {
                     debug!("Stopping, need input");
-                    return Ok(Stopped::NeedInput(self));
+                    return Ok(Stopped::NeedInput);
                 }
             }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn get_product(self) -> Result<Product> {
+        if self.is_halted {
+            Ok(Product::new(self.memory, self.outputs))
+        } else {
+            Err("Program is not halted".to_string())
         }
     }
 
