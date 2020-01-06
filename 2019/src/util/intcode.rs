@@ -172,14 +172,18 @@ impl IntCode {
         self
     }
 
-    pub fn push_input(&mut self, input: &Value) {
-        self.inputs.push_back(input.clone());
+    pub fn push_input(&mut self, input: Value) {
+        self.inputs.push_back(input);
     }
 
     pub fn pop_output(&mut self) -> Result<Value> {
         self.outputs
             .pop_front()
             .ok_or_else(|| "No outputs".to_string())
+    }
+
+    pub fn take_outputs(&mut self) -> Vec<Value> {
+        self.outputs.drain(..).collect()
     }
 
     pub fn set_memory(&mut self, index: usize, value: Value) {
@@ -217,7 +221,7 @@ impl IntCode {
             OpCode::LessThan => self.op_less_than(modes),
             OpCode::Equals => self.op_equals(modes),
             OpCode::AdjustRelativeBase => self.op_adjust_relative_base(modes),
-            OpCode::Halt => Ok(Going::Stop),
+            OpCode::Halt => self.op_halt(),
         }
     }
 
@@ -269,6 +273,11 @@ impl IntCode {
         let (value,) = self.get_params1(modes.get(0))?;
         self.relative_base += value;
         Ok(Going::Continue)
+    }
+
+    fn op_halt(&mut self) -> Result<Going> {
+        self.is_halted = true;
+        Ok(Going::Stop)
     }
 
     fn jump_op(&mut self, modes: ParameterModes, op: UnaryBoolOp) -> Result<Going> {

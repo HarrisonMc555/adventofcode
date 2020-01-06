@@ -87,7 +87,7 @@ fn run_amplifiers_feedback(program: IntCode, phase_settings: &[Value]) -> Result
 }
 
 fn run_amplifier_til_input(program: &mut IntCode, input_signal: Value) -> Result<Stopped> {
-    program.push_input(&input_signal);
+    program.push_input(input_signal);
     program.run_blocking_input()
 }
 

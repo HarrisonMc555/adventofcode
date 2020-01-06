@@ -75,7 +75,7 @@ impl Robot {
     pub fn run_to_grid(mut self) -> Result<HashMap<Location, Color>> {
         loop {
             let color = self.grid.get(&self.loc).unwrap_or(&Color::Black);
-            self.program.push_input(&color.value());
+            self.program.push_input(color.value());
             // if self.program.run_blocking_input()? == Stopped::Complete {
             if let Stopped::Complete = self.program.run_blocking_input()? {
                 return Ok(self.grid);
@@ -91,7 +91,7 @@ impl Robot {
         let mut seen = HashSet::new();
         loop {
             let color = self.grid.get(&self.loc).unwrap_or(&Color::Black);
-            self.program.push_input(&color.value());
+            self.program.push_input(color.value());
             if let Stopped::Complete = self.program.run_blocking_input()? {
                 break;
             }
