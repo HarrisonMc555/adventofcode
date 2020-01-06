@@ -3,7 +3,6 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt;
-use std::ops::Sub;
 
 const INPUT: &str = include_str!("../../static/day13.txt");
 
@@ -30,7 +29,6 @@ struct Vec2<T> {
 }
 
 type Location = Vec2<Value>;
-type Velocity = Vec2<Value>;
 type Grid = HashMap<Location, TileId>;
 type Score = Value;
 
@@ -57,7 +55,6 @@ enum TileId {
 
 struct Player {
     game: Game,
-    prediction: Prediction,
     program: IntCode,
 }
 
@@ -66,11 +63,6 @@ struct Game {
     score: Score,
     ball_loc: Location,
     paddle_loc: Location,
-}
-
-struct Prediction {
-    paddle_destination: Location,
-    ball_vel: Velocity,
 }
 
 enum GameStatus {
@@ -179,39 +171,16 @@ impl Player {
             Stopped::NeedInput => (),
         }
         let instructions = parse_instructions(&program.take_outputs())?;
-        let mut game = Game::init_from_instructions(instructions)?;
-        let prediction = Player::create_prediction(&mut program, &mut game)?;
-        Ok(Player {
-            game,
-            prediction,
-            program,
-        })
+        let game = Game::init_from_instructions(instructions)?;
+        Ok(Player { game, program })
     }
 
     fn run(mut self) -> Result<Score> {
-        // let mut count = 0;
-        // let mut grid_items = self.game.grid.iter().collect::<Vec<_>>();
-        // grid_items.sort_unstable_by_key(|(loc, _)| loc.clone());
-        // for (loc, tile_id) in grid_items {
-        //     println!("({:<3}, {:<3}) = {:?}", loc.x, loc.y, tile_id);
-        // }
         while let GameStatus::Going = self.step()? {
-            // count += 1;
-            // if count > 20 {
-            //     break;
-            // }
-            // let command = self.get_command();
-            // let command_string = match () {
-            //     _ if command == *JOYSTICK_LEFT => "left",
-            //     _ if command == *JOYSTICK_NEUTRAL => "neutral",
-            //     _ if command == *JOYSTICK_RIGHT => "right",
-            //     _ => panic!("Invalid command"),
-            // };
-            // println!("Command: {}", command_string);
-            // self.game.print();
-            // println!();
             self.program.push_input(self.get_command());
         }
+        // Do one more step to account for the last outputs before the program
+        // ended
         self.step()?;
         self.game.print();
         Ok(self.game.score)
@@ -219,25 +188,6 @@ impl Player {
 
     fn get_command(&self) -> Value {
         Player::joystick_command(&self.game.paddle_loc.x, &self.game.ball_loc.x)
-    }
-
-    fn create_prediction(program: &mut IntCode, game: &mut Game) -> Result<Prediction> {
-        let old_ball_loc = game.ball_loc.clone();
-        program.push_input(Player::joystick_command(
-            &game.paddle_loc.x,
-            &game.ball_loc.x,
-        ));
-        match program.run_blocking_input()? {
-            Stopped::Complete => return Err("Game stopped".to_string()),
-            Stopped::NeedInput => (),
-        }
-        let instructions = parse_instructions(&program.take_outputs())?;
-        game.run_instructions(instructions);
-        let ball_vel = &game.ball_loc - &old_ball_loc;
-        Ok(Prediction::new(
-            Location::new(Value::from(0), Value::from(0)),
-            ball_vel,
-        ))
     }
 
     fn step(&mut self) -> Result<GameStatus> {
@@ -255,21 +205,6 @@ impl Player {
             Ordering::Less => JOYSTICK_RIGHT.clone(),
             Ordering::Equal => JOYSTICK_NEUTRAL.clone(),
             Ordering::Greater => JOYSTICK_LEFT.clone(),
-        }
-    }
-}
-
-impl<T> Vec2<T> {
-    pub fn new(x: T, y: T) -> Self {
-        Vec2 { x, y }
-    }
-}
-
-impl Prediction {
-    fn new(paddle_destination: Location, ball_vel: Velocity) -> Self {
-        Prediction {
-            paddle_destination,
-            ball_vel,
         }
     }
 }
@@ -328,15 +263,11 @@ impl Game {
         }
     }
 
+    #[allow(dead_code)]
     fn print(&self) {
         println!("Score: {}", self.score);
         let (min_x, max_x) = (0, 44);
         let (min_y, max_y) = (0, 20);
-        // let min_x = self.grid.keys().map(|loc| &loc.x).min().unwrap();
-        // let max_x = self.grid.keys().map(|loc| &loc.x).max().unwrap();
-        // let min_y = self.grid.keys().map(|loc| &loc.y).min().unwrap();
-        // let max_y = self.grid.keys().map(|loc| &loc.y).max().unwrap();
-        // dbg!((min_x, max_x, min_y, max_y));
         for y in min_y..max_y {
             for x in min_x..max_x {
                 let tile_id = self
@@ -346,44 +277,6 @@ impl Game {
                 print!("{}", tile_id);
             }
             println!();
-        }
-        // let (mut x, mut y) = (min_x.clone(), max_y.clone());
-        // while &y >= min_y {
-        //     while &x <= max_x {
-        //         let tile_id = self.grid.get(&Location::new(x.clone(), y.clone())).unwrap();
-        //         print!("{}", tile_id);
-        //         x += 1;
-        //     }
-        //     println!();
-        //     y -= 1;
-        // }
-    }
-}
-
-impl<T> Sub for Vec2<T>
-where
-    T: Sub<Output = T>,
-{
-    type Output = Self;
-
-    fn sub(self, other: Vec2<T>) -> Self::Output {
-        Vec2 {
-            x: self.x - other.x,
-            y: self.y - other.y,
-        }
-    }
-}
-
-impl<'a, T> Sub for &'a Vec2<T>
-where
-    &'a T: Sub<Output = T>,
-{
-    type Output = Vec2<T>;
-
-    fn sub(self, other: &'a Vec2<T>) -> Self::Output {
-        Vec2 {
-            x: &self.x - &other.x,
-            y: &self.y - &other.y,
         }
     }
 }
@@ -398,5 +291,11 @@ impl fmt::Display for TileId {
             TileId::Ball => "o",
         };
         write!(f, "{}", c)
+    }
+}
+
+impl<T> Vec2<T> {
+    pub fn new(x: T, y: T) -> Self {
+        Vec2 { x, y }
     }
 }

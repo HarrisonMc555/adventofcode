@@ -3,8 +3,8 @@ extern crate lazy_static;
 
 use std::env;
 
-mod util;
 mod days;
+mod util;
 
 use days::*;
 
