@@ -1,3 +1,4 @@
+use crate::util::graph::Graph;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
@@ -29,8 +30,9 @@ pub fn main() {
 }
 
 fn solve1(input: &str) -> Result<Count> {
-    let reactions = parse_input(input);
-    dbg!(reactions);
+    let reactions = parse_input(input)?;
+    dbg!(&reactions);
+    let graph = reactions_to_graph(reactions);
     Err("unimplemented".to_string())
 }
 
@@ -38,61 +40,13 @@ fn num_required(target: &str, source: &str) -> Count {
     0
 }
 
-// fn linearization<T>(dependencies: HashMap<T, Vec<T>>) -> Vec<T>
-// where
-//     T: Hash + Eq,
-// {
-//     let mut visited = HashSet::new();
-//     let mut post_nums = HashMap::new();
-//     let mut post_num = 0;
-//     let pre_visit = |_| {};
-//     let post_visit = |item| {
-//         post_nums.insert(item, post_num);
-//         post_num += 1;
-//     };
-
-//     Vec::new()
-// }
-
-// fn depth_first_search<T, F>(graph: HashMap<T, Vec<T>>, explore: F)
-// where
-//     T: Hash + Eq,
-//     F: FnMut(&T),
-// {
-//     let mut visited = HashSet::new();
-//     let mut post_nums = HashMap::new();
-//     let mut post_num = 0;
-//     let pre_visit = |_| {};
-//     let post_visit = |item| {
-//         post_nums.insert(item, post_num);
-//         post_num += 1;
-//     };
-
-//     Vec::new()
-// }
-
-// fn explore<'a, T, PreF, PostF>(
-//     item: &'a T,
-//     graph: HashMap<T, Vec<T>>,
-//     visited: &mut HashSet<&'a T>,
-//     pre_visit: PreF,
-//     post_visit: PostF,
-// ) where
-//     T: Hash + Eq,
-//     PreF: FnMut(&T),
-//     PostF: FnMut(&T),
-// {
-//     visited.insert(item);
-//     pre_visit(item);
-//     if let Some(connections) = graph.get(item) {
-//         for next in connections {
-//             if !visited.contains(item) {
-//                 explore(next, graph, visited, pre_visit, post_visit);
-//             }
-//         }
-//     }
-//     post_visit(item);
-// }
+fn reactions_to_graph(reactions: Vec<Reaction>) -> Graph<Chemical> {
+    let edges = reactions
+        .into_iter()
+        .map(|reaction| (reaction.product, reaction.reactants))
+        .collect::<HashMap<_, _>>();
+    Graph::from_edge_map(edges)
+}
 
 fn parse_input(input: &str) -> Result<Vec<Reaction>> {
     input
