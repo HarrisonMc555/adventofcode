@@ -1,49 +1,117 @@
 use crate::util::graph::Graph;
 use regex::Regex;
-use std::collections::{HashMap, HashSet};
+use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::hash::Hash;
 
 const INPUT: &str = include_str!("../../static/day14.txt");
 const TARGET_NAME: &str = "FUEL";
+const TARGET_COUNT: Count = 1;
 const SOURCE_NAME: &str = "ORE";
+const SOURCE_COUNT: Count = 1_000_000_000_000;
 
-type Count = u32;
+type Count = u64;
 type Result<T> = std::result::Result<T, String>;
+type ChemicalName = String;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 struct Reaction {
-    reactants: Vec<Chemical>,
-    product: Chemical,
+    reactants: Vec<ChemicalCount>,
+    product: ChemicalCount,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
-struct Chemical {
+struct ChemicalCount {
     count: Count,
-    name: String,
+    name: ChemicalName,
 }
 
 pub fn main() {
     let answer1 = solve1(INPUT);
     println!("{:?}", answer1);
-    // let answer2 = solve2(INPUT);
-    // println!("{:?}", answer2);
+    let answer2 = solve2(INPUT);
+    println!("{:?}", answer2);
 }
 
 fn solve1(input: &str) -> Result<Count> {
     let reactions = parse_input(input)?;
-    dbg!(&reactions);
-    let graph = reactions_to_graph(reactions);
-    Err("unimplemented".to_string())
+    let product_to_reaction = get_product_to_reaction(&reactions);
+    let graph = reactions_to_graph(&reactions);
+    let ordered_chemicals = graph
+        .linearization()
+        .ok_or_else(|| "Acyclic graph found".to_string())?;
+    let target = (TARGET_NAME.to_string(), TARGET_COUNT);
+    let chemical_to_count = get_chemical_to_count(&product_to_reaction, &ordered_chemicals, target);
+    let source_count = chemical_to_count
+        .get(SOURCE_NAME)
+        .ok_or_else(|| format!("No {} found", SOURCE_NAME))?;
+    Ok(*source_count)
 }
 
-fn num_required(target: &str, source: &str) -> Count {
-    0
+fn solve2(input: &str) -> Result<Count> {
+    let reactions = parse_input(input)?;
+    let product_to_reaction = get_product_to_reaction(&reactions);
+    let graph = reactions_to_graph(&reactions);
+    let ordered_chemicals = graph
+        .linearization()
+        .ok_or_else(|| "Acyclic graph found".to_string())?;
+    binary_search(
+        |target_count| {
+            *get_chemical_to_count(
+                &product_to_reaction,
+                &ordered_chemicals,
+                (TARGET_NAME.to_string(), target_count),
+            )
+            .get(SOURCE_NAME)
+            .unwrap()
+        },
+        |source_count| source_count < SOURCE_COUNT,
+        1,
+        SOURCE_COUNT,
+    )
 }
 
-fn reactions_to_graph(reactions: Vec<Reaction>) -> Graph<Chemical> {
+fn get_chemical_to_count(
+    product_to_reaction: &HashMap<ChemicalName, Reaction>,
+    ordered_chemicals: &[ChemicalName],
+    (target_name, target_count): (ChemicalName, Count),
+) -> HashMap<ChemicalName, Count> {
+    let mut chemicals_needed = HashMap::new();
+    chemicals_needed.insert(target_name, target_count);
+    for chemical in ordered_chemicals {
+        let reaction = match product_to_reaction.get(chemical) {
+            Some(reaction) => reaction,
+            // If there's no way to produce this chemical, we assume we have
+            // unlimited quantities of it (and assume that we already know how
+            // much we need).
+            None => continue,
+        };
+        let needed = chemicals_needed.get(chemical).cloned().unwrap_or(0);
+        let num_reactions = divide_round_up(needed, reaction.product.count);
+        for reactant in reaction.reactants.iter() {
+            let count = chemicals_needed.entry(reactant.name.clone()).or_insert(0);
+            *count += num_reactions * reactant.count;
+        }
+    }
+    chemicals_needed
+}
+
+fn get_product_to_reaction(reactions: &[Reaction]) -> HashMap<ChemicalName, Reaction> {
+    reactions
+        .iter()
+        .map(|reaction: &Reaction| (reaction.product.name.to_string(), reaction.clone()))
+        .collect()
+}
+
+fn reactions_to_graph(reactions: &[Reaction]) -> Graph<ChemicalName> {
     let edges = reactions
-        .into_iter()
-        .map(|reaction| (reaction.product, reaction.reactants))
+        .iter()
+        .map(|reaction| {
+            (
+                reaction.product.name.clone(),
+                reaction.reactants.iter().map(|r| r.name.clone()).collect(),
+            )
+        })
         .collect::<HashMap<_, _>>();
     Graph::from_edge_map(edges)
 }
@@ -72,19 +140,19 @@ fn parse_line(line: &str) -> Option<Reaction> {
     Some(Reaction::new(reactants, product))
 }
 
-fn parse_chemical(chemical: &str) -> Option<Chemical> {
+fn parse_chemical(chemical: &str) -> Option<ChemicalCount> {
     lazy_static! {
         static ref CHEMICAL_RE: Regex = Regex::new(r" *(\d+) +(\w+)").unwrap();
     }
     let cap = CHEMICAL_RE.captures(chemical)?;
     let count = cap[1].parse::<Count>().ok()?;
     let name = &cap[2];
-    Some(Chemical::new(count, name))
+    Some(ChemicalCount::new(count, name))
 }
 
-impl Chemical {
+impl ChemicalCount {
     pub fn new(count: Count, name: &str) -> Self {
-        Chemical {
+        ChemicalCount {
             count,
             name: name.to_string(),
         }
@@ -92,7 +160,37 @@ impl Chemical {
 }
 
 impl Reaction {
-    pub fn new(reactants: Vec<Chemical>, product: Chemical) -> Self {
+    pub fn new(reactants: Vec<ChemicalCount>, product: ChemicalCount) -> Self {
         Reaction { reactants, product }
     }
+}
+
+fn binary_search<Map, Check>(
+    map: Map,
+    check: Check,
+    mut low: Count,
+    mut high: Count,
+) -> Result<Count>
+where
+    Map: Fn(Count) -> Count,
+    Check: Fn(Count) -> bool,
+{
+    loop {
+        match low.cmp(&high) {
+            Ordering::Less => (),
+            Ordering::Equal => return Ok(low),
+            Ordering::Greater => return Err("Bounds crossed, nothing found".to_string()),
+        }
+        let choice = divide_round_up(low + high, 2);
+        let value = map(choice);
+        if check(value) {
+            low = choice;
+        } else {
+            high = choice - 1;
+        }
+    }
+}
+
+fn divide_round_up(x: Count, y: Count) -> Count {
+    (x + y - 1) / y
 }
