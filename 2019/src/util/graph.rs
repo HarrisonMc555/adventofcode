@@ -92,12 +92,11 @@ where
         let mut visited = HashSet::<&T>::new();
         let mut active = HashSet::<&T>::new();
         for node in self.nodes() {
-            if !visited.contains(node) {
-                if self.explore(node, &mut visited, &mut active, pre_visit, post_visit)
+            if !visited.contains(node)
+                && self.explore(node, &mut visited, &mut active, pre_visit, post_visit)
                     == Classification::Cyclic
-                {
-                    classification = Classification::Cyclic;
-                }
+            {
+                classification = Classification::Cyclic;
             }
         }
         classification
