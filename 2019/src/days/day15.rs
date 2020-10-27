@@ -117,12 +117,12 @@ impl Explorer {
         } = breadcrumb;
         match status_code {
             StatusCode::HitWall => {
-                self.grid.insert(location.go(direction), Tile::Wall);
+                self.grid.insert(self.location.go(direction), Tile::Wall);
                 self.hit_wall_in_direction(direction);
             }
             StatusCode::Moved => {
                 self.grid.insert(location, Tile::Empty);
-                self.moved_in_direction(breadcrumb);
+                self.moved_in_direction(breadcrumb.direction);
             }
             StatusCode::MovedFoundGoal => {
                 self.found_goal_location(&location)?;
@@ -134,12 +134,14 @@ impl Explorer {
     }
 
     fn moved_in_direction(&mut self, direction: Direction) {
-        if let Some(next_breadcrumb) = self.next_breadcrumb(direction) {
-            self.breadcrumbs.push(next_breadcrumb);
-        }
-        let forward_breadcrumb = self.step_forward(direction);
-        self.breadcrumbs.push(forward_breadcrumb);
-        self.location = location.go(direction);
+        self.breadcrumbs.push(Breadcrumb::new(self.location.clone(), direction));
+        self.location = self.location.go(direction);
+        // if let Some(next_breadcrumb) = self.next_breadcrumb(direction) {
+        //     self.breadcrumbs.push(next_breadcrumb);
+        // }
+        // let forward_breadcrumb = self.step_forward(direction);
+        // self.breadcrumbs.push(forward_breadcrumb);
+        // self.location = location.go(direction);
     }
 
     fn hit_wall_in_direction(&mut self, direction: Direction) {
@@ -159,8 +161,14 @@ impl Explorer {
     }
 
     fn try_move(&mut self, direction: Direction) -> Result<StatusCode> {
+        println!("Pushing input: {:?}", direction.to_command());
         self.program.push_input(direction.to_command());
+        println!("Pushed input, running");
+        let stopped = self.program.run_blocking_input()?;
+        assert!(stopped == Stopped::NeedInput);
+        println!("Ran, popping output");
         let value = self.program.pop_output()?;
+        println!("Output: {:?}", value);
         StatusCode::try_from_value(value)
     }
 }

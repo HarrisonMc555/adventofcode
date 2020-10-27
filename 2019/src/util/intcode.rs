@@ -186,7 +186,8 @@ impl IntCode {
     pub fn pop_output(&mut self) -> Result<Value> {
         self.outputs
             .pop_front()
-            .ok_or_else(|| "No outputs".to_string())
+            // .ok_or_else(|| "No outputs".to_string())
+            .ok_or_else(|| panic!("No outputs"))
     }
 
     pub fn take_outputs(&mut self) -> Vec<Value> {
@@ -458,14 +459,16 @@ impl Product {
         self.outputs
             .first()
             .cloned()
-            .ok_or_else(|| "No outputs".to_string())
+            // .ok_or_else(|| "No outputs".to_string())
+            .ok_or_else(|| panic!("No outputs"))
     }
 
     pub fn last_output(&self) -> Result<Value> {
         self.outputs
             .last()
             .cloned()
-            .ok_or_else(|| "No outputs".to_string())
+        // .ok_or_else(|| "No outputs".to_string())
+            .ok_or_else(|| panic!("No outputs"))
     }
 }
 
