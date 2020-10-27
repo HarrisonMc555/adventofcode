@@ -4,6 +4,7 @@ extern crate lazy_static;
 use std::env;
 
 mod days;
+#[macro_use]
 mod util;
 
 use days::*;

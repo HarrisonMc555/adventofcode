@@ -6,6 +6,13 @@ use std::convert::TryFrom;
 
 const DEBUG: bool = false;
 
+#[macro_export]
+macro_rules! val {
+    ( $e:expr ) => {
+        Value::from($e)
+    };
+}
+
 macro_rules! debug {
     ( $e:expr ) => {
         if DEBUG {
