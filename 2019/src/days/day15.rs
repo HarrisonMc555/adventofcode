@@ -1,7 +1,19 @@
 use crate::util::intcode::{Error, IntCode, Result, Stopped, Value};
+use crate::val;
 use std::collections::HashMap;
 
 const INPUT: &str = include_str!("../../static/day15.txt");
+
+lazy_static! {
+    static ref VALUE_NORTH: Value = val!(1);
+    static ref VALUE_EAST: Value = val!(2);
+    static ref VALUE_SOUTH: Value = val!(3);
+    static ref VALUE_WEST: Value = val!(4);
+    static ref VALUE_HIT_WALL: Value = val!(0);
+    static ref VALUE_MOVED: Value = val!(1);
+    static ref VALUE_MOVED_FOUND_GOAL: Value = val!(2);
+    static ref VALUE_ONE: Value = val!(1);
+}
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 enum Cell {
@@ -39,7 +51,8 @@ pub fn main() {
 }
 
 fn solve1(input: &str) -> Result<()> {
-    explore_everywhere(Index { row: 0, column: 0 });
+    let program = IntCode::from_str(input)?;
+    explore_everywhere(program);
     Err("unimplemented".to_string())
 }
 
@@ -80,6 +93,8 @@ impl Index {
             ..self
         }
     }
+
+    const ORIGIN: Self = Self { row: 0, column: 0 };
 }
 
 impl Direction {
@@ -93,31 +108,86 @@ impl Direction {
     fn all() -> impl Iterator<Item = Self> {
         Self::ALL_DIRECTIONS.iter().copied()
     }
-}
 
-fn explore_everywhere(cur_index: Index) -> HashMap<Index, Cell> {
-    // let mut cur_index = Index { row: 0, column: 0 };
-    let mut map = HashMap::new();
-    map.insert(cur_index, Cell::Empty);
-    for direction in Direction::all() {
-        let new_index = cur_index.step(direction);
-        if map.contains_key(&new_index) {
-            continue;
-        }
-        match send_move_command(direction) {
-            Response::HitWall => continue,
-            Response::Moved => {
-                map.insert(new_index, Cell::Empty);
-                explore_everywhere(new_index);
-            }
-            Response::OxygenSystem => {
-                map.insert(new_index, Cell::OxygenSystem);
-                explore_everywhere(new_index);
-            }
+    const FIRST: Self = Direction::North;
+
+    fn next(self) -> Option<Self> {
+        Some(match self {
+            Direction::North => Direction::East,
+            Direction::East => Direction::South,
+            Direction::South => Direction::West,
+            Direction::West => return None,
+        })
+    }
+
+    fn opposite(self) -> Self {
+        match self {
+            Direction::North => Direction::South,
+            Direction::East => Direction::West,
+            Direction::South => Direction::North,
+            Direction::West => Direction::East,
         }
     }
-    // if
-    panic!("Unimplemented");
+}
+
+// fn explore_everywhere(program: IntCode) -> HashMap<Index, Cell> {
+//     let mut map = HashMap::new();
+//     let init_index = Index { row: 0, column: 0 };
+//     map.insert(init_index, Cell::Empty);
+//     explore(&mut map, init_index);
+// }
+
+struct Breadcrumb {
+    index: Index,
+    direction: Direction,
+}
+
+impl Breadcrumb {
+    pub fn new(index: Index, direction: Direction) -> Self {
+        Self { index, direction }
+    }
+}
+
+fn explore_everywhere(program: IntCode) -> HashMap<Index, Cell> {
+    let mut cur_index = Index::ORIGIN;
+    let mut cur_direction = Direction::FIRST;
+
+    let mut map = HashMap::new();
+    map.insert(cur_index, Cell::Empty);
+
+    let mut breadcrumbs = Vec::<Breadcrumb>::new();
+    // let mut breadcrumbs = vec![Breadcrumb::new(init_index, Direction::FIRST)];
+
+    'outer: loop {
+        let next_index = cur_index.step(cur_direction);
+        if map.contains_key(&next_index) {
+            // Map contains key, so we've already been here. Better rotate or backtrack.
+            match cur_direction.next() {
+                // Successful rotate.
+                Some(next_direction) => cur_direction = next_direction,
+                // Unsuccessful rotate, backgrack.
+                None => {
+                    'inner: while let Some(breadcrumb) = breadcrumbs.pop() {
+                        send_move_command(breadcrumb.direction.opposite());
+                        cur_index = breadcrumb.index;
+                        if let Some(direction) = breadcrumb.direction.next() {
+                            cur_direction = direction;
+                            continue 'outer;
+                        }
+                    }
+                    // Only get here if we ran out of breadcrumbs. That means we're back to the
+                    // beginning.
+                    assert_eq!(cur_index, Index::ORIGIN);
+                    return map;
+                }
+            }
+        } else {
+            // Map does NOT contain key. Move forward.
+            send_move_command(cur_direction);
+            cur_index = cur_index.step(cur_direction);
+            cur_direction = Direction::FIRST;
+        }
+    }
 }
 
 fn send_move_command(direction: Direction) -> Response {
