@@ -1,8 +1,6 @@
-#![allow(unused_labels, unused_imports, dead_code, unused_variables)]
-
-use crate::util::intcode::{Error, IntCode, Result, Stopped, Value};
+use crate::util::intcode::{IntCode, Result, Stopped, Value};
 use crate::val;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 const INPUT: &str = include_str!("../../static/day15.txt");
 
@@ -196,7 +194,7 @@ fn explore_everywhere(mut program: IntCode) -> HashMap<Index, Cell> {
                 Some(next_direction) => cur_direction = next_direction,
                 // Unsuccessful rotate, backgrack.
                 None => {
-                    'inner: while let Some(breadcrumb) = breadcrumbs.pop() {
+                    while let Some(breadcrumb) = breadcrumbs.pop() {
                         send_move_command(&mut program, breadcrumb.direction.opposite());
                         cur_index = breadcrumb.index;
                         if let Some(direction) = breadcrumb.direction.next() {
@@ -258,7 +256,7 @@ fn shortest_distance_to_oxygen(map: &HashMap<Index, Cell>) -> usize {
         }
 
         let next_distance = distance + 1;
-        for direction in Direction::ALL_DIRECTIONS.iter().copied() {
+        for direction in Direction::all() {
             let next_index = index.step(direction);
             if map.get(&next_index) == Some(&Cell::Wall) {
                 continue;
@@ -292,7 +290,7 @@ fn time_to_fill_with_oxygen(map: &HashMap<Index, Cell>) -> usize {
             None => panic!("No distance to {:?}", index),
         };
         let next_distance = distance + 1;
-        for direction in Direction::ALL_DIRECTIONS.iter().copied() {
+        for direction in Direction::all() {
             let next_index = index.step(direction);
             if map.get(&next_index) == Some(&Cell::Wall) {
                 continue;
