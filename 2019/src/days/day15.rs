@@ -325,7 +325,7 @@ fn debug_print_map_distances(map: &HashMap<Index, Cell>, distances: &HashMap<Ind
                 Some(Cell::Empty) => match distances.get(&index) {
                     Some(distance) => distance.to_string(),
                     None => "".to_string(),
-                }
+                },
                 Some(Cell::Wall) => "#".to_string(),
                 Some(Cell::OxygenSystem) => "O".to_string(),
                 None => "".to_string(),
