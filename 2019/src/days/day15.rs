@@ -6,8 +6,8 @@ const INPUT: &str = include_str!("../../static/day15.txt");
 
 lazy_static! {
     static ref VALUE_NORTH: Value = val!(1);
-    static ref VALUE_EAST: Value = val!(2);
-    static ref VALUE_SOUTH: Value = val!(3);
+    static ref VALUE_SOUTH: Value = val!(2);
+    static ref VALUE_EAST: Value = val!(3);
     static ref VALUE_WEST: Value = val!(4);
     static ref VALUE_HIT_WALL: Value = val!(0);
     static ref VALUE_MOVED: Value = val!(1);
