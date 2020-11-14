@@ -2,7 +2,7 @@
 
 use crate::util::intcode::{Error, IntCode, Result, Stopped, Value};
 use crate::val;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 const INPUT: &str = include_str!("../../static/day15.txt");
 
@@ -51,12 +51,12 @@ pub fn main() {
     // println!("{:?}", answer2);
 }
 
-fn solve1(input: &str) -> Result<()> {
+fn solve1(input: &str) -> Result<usize> {
     let program = IntCode::from_str(input)?;
     let map = explore_everywhere(program);
-    // println!("{:?}", map);
     debug_print_map(&map, Index::ORIGIN, Direction::FIRST);
-    Err("unimplemented".to_string())
+    Ok(shortest_distance_to_oxygen(&map))
+    // Err("unimplemented".to_string())
 }
 
 impl Index {
@@ -180,27 +180,8 @@ fn explore_everywhere(mut program: IntCode) -> HashMap<Index, Cell> {
     map.insert(cur_index, Cell::Empty);
 
     let mut breadcrumbs = Vec::<Breadcrumb>::new();
-    // let mut breadcrumbs = vec![Breadcrumb::new(init_index, Direction::FIRST)];
 
-    let mut count = 0;
-    const MAX_COUNT: usize = 1_000_000;
-    // const MAX_COUNT: usize = 1_000;
-    const EVERY: usize = 10_000;
     'outer: loop {
-        if count > MAX_COUNT {
-            break;
-        } else if count % EVERY == 0 {
-            // println!("Count: {}", count);
-            debug_print_map(&map, cur_index, cur_direction);
-            println!();
-        }
-        count += 1;
-
-        // println!(
-        //     "Index: ({}, {}), Direction: {:?}",
-        //     cur_index.row, cur_index.column, cur_direction
-        // );
-
         let next_index = cur_index.step(cur_direction);
         if map.contains_key(&next_index) {
             // Map contains key, so we've already been here. Better rotate or backtrack.
@@ -210,15 +191,11 @@ fn explore_everywhere(mut program: IntCode) -> HashMap<Index, Cell> {
                 // Unsuccessful rotate, backgrack.
                 None => {
                     'inner: while let Some(breadcrumb) = breadcrumbs.pop() {
-                        // println!("Popped breadcrumb: {:?}", breadcrumb);
                         send_move_command(&mut program, breadcrumb.direction.opposite());
                         cur_index = breadcrumb.index;
                         if let Some(direction) = breadcrumb.direction.next() {
-                            // println!("\tBreadcrumb next direction: {:?}", direction);
                             cur_direction = direction;
                             continue 'outer;
-                        } else {
-                            // println!("\tBreadcrumb no next direction, keep popping");
                         }
                     }
                     // Only get here if we ran out of breadcrumbs. That means we're back to the
@@ -250,23 +227,52 @@ fn explore_everywhere(mut program: IntCode) -> HashMap<Index, Cell> {
             };
         }
     }
+}
 
-    return map;
+fn shortest_distance_to_oxygen(map: &HashMap<Index, Cell>) -> usize {
+    let mut distances = HashMap::<Index, usize>::new();
+    distances.insert(Index::ORIGIN, 0);
+    let mut queue = VecDeque::new();
+    queue.push_back(Index::ORIGIN);
+    while let Some(index) = queue.pop_front() {
+        let distance = match distances.get(&index) {
+            Some(&distance) => distance,
+            None => panic!("No distance to {:?}", index),
+        };
+        if map.get(&index) == Some(&Cell::OxygenSystem) {
+            // let mut vec = distances.into_iter().collect::<Vec<_>>();
+            // vec.sort_unstable_by_key(|&(_, distance)| distance);
+            // println!("Distances:");
+            // for (index, distance) in vec {
+            //     println!("  {:?} => {}", index, distance);
+            // }
+            println!();
+            debug_print_map_distances(map, &distances);
+            return distance;
+        }
+
+        let next_distance = distance + 1;
+        for direction in Direction::ALL_DIRECTIONS.iter().copied() {
+            let next_index = index.step(direction);
+            if map.get(&next_index) == Some(&Cell::Wall) {
+                continue;
+            }
+            if distances.contains_key(&next_index) {
+                continue;
+            }
+            distances.insert(next_index, next_distance);
+            queue.push_back(next_index);
+        }
+    }
+    panic!("Ran out of explorable spaces without reaching oxygen system!");
 }
 
 fn send_move_command(program: &mut IntCode, direction: Direction) -> Response {
-    // println!("Pushing input: {:?}", direction.to_command());
-    // println!("Pushing input: {:?}", direction);
     program.push_input(direction.to_command());
-    // println!("Pushed input, running");
     let stopped = program.run_blocking_input().expect("Cannot run");
     assert!(stopped == Stopped::NeedInput);
-    // println!("Ran, popping output");
     let value = program.pop_output().expect("No output");
-    // println!("Output: {:?}", value);
-    // Response::try_from_value(value).expect("Invalid output")
     let response = Response::try_from_value(value).expect("Invalid output");
-    // println!(", response: {:?}", response);
     response
 }
 
@@ -299,6 +305,32 @@ fn debug_print_map(map: &HashMap<Index, Cell>, cur_index: Index, cur_direction: 
                 }
             };
             print!("{}", c);
+        }
+        println!();
+    }
+}
+
+fn debug_print_map_distances(map: &HashMap<Index, Cell>, distances: &HashMap<Index, usize>) {
+    let rows = map.keys().map(|index| index.row);
+    let min_row = rows.clone().min().expect("Empty map");
+    let max_row = rows.max().expect("Empty map");
+    let columns = map.keys().map(|index| index.column);
+    let min_column = columns.clone().min().expect("Empty map");
+    let max_column = columns.max().expect("Empty map");
+
+    for row in min_row..=max_row {
+        for column in min_column..=max_column {
+            let index = Index { row, column };
+            let s = match map.get(&index) {
+                Some(Cell::Empty) => match distances.get(&index) {
+                    Some(distance) => distance.to_string(),
+                    None => "".to_string(),
+                }
+                Some(Cell::Wall) => "#".to_string(),
+                Some(Cell::OxygenSystem) => "O".to_string(),
+                None => "".to_string(),
+            };
+            print!("{:4}", s);
         }
         println!();
     }
