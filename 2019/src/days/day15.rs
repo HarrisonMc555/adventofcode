@@ -47,8 +47,8 @@ enum Direction {
 pub fn main() {
     let answer1 = solve1(INPUT);
     println!("{:?}", answer1);
-    // let answer2 = solve2(INPUT);
-    // println!("{:?}", answer2);
+    let answer2 = solve2(INPUT);
+    println!("{:?}", answer2);
 }
 
 fn solve1(input: &str) -> Result<usize> {
@@ -56,7 +56,13 @@ fn solve1(input: &str) -> Result<usize> {
     let map = explore_everywhere(program);
     debug_print_map(&map, Index::ORIGIN, Direction::FIRST);
     Ok(shortest_distance_to_oxygen(&map))
-    // Err("unimplemented".to_string())
+}
+
+fn solve2(input: &str) -> Result<usize> {
+    let program = IntCode::from_str(input)?;
+    let map = explore_everywhere(program);
+    debug_print_map(&map, Index::ORIGIN, Direction::FIRST);
+    Ok(time_to_fill_with_oxygen(&map))
 }
 
 impl Index {
@@ -265,6 +271,41 @@ fn shortest_distance_to_oxygen(map: &HashMap<Index, Cell>) -> usize {
         }
     }
     panic!("Ran out of explorable spaces without reaching oxygen system!");
+}
+
+fn time_to_fill_with_oxygen(map: &HashMap<Index, Cell>) -> usize {
+    let mut distances = HashMap::<Index, usize>::new();
+    let oxygen_index = map
+        .iter()
+        .filter(|(_, &cell)| cell == Cell::OxygenSystem)
+        .next()
+        .map(|(index, _)| index)
+        .expect("No oxygen system found")
+        .clone();
+    distances.insert(oxygen_index, 0);
+    let mut queue = VecDeque::new();
+    queue.push_back(oxygen_index);
+    let mut max_distance = 0;
+    while let Some(index) = queue.pop_front() {
+        let distance = match distances.get(&index) {
+            Some(&distance) => distance,
+            None => panic!("No distance to {:?}", index),
+        };
+        let next_distance = distance + 1;
+        for direction in Direction::ALL_DIRECTIONS.iter().copied() {
+            let next_index = index.step(direction);
+            if map.get(&next_index) == Some(&Cell::Wall) {
+                continue;
+            }
+            if distances.contains_key(&next_index) {
+                continue;
+            }
+            distances.insert(next_index, next_distance);
+            queue.push_back(next_index);
+        }
+        max_distance = std::cmp::max(max_distance, distance);
+    }
+    max_distance
 }
 
 fn send_move_command(program: &mut IntCode, direction: Direction) -> Response {
