@@ -187,6 +187,7 @@ fn explore_everywhere(mut program: IntCode) -> HashMap<Index, Cell> {
 
     'outer: loop {
         let next_index = cur_index.step(cur_direction);
+        #[allow(clippy::map_entry)]
         if map.contains_key(&next_index) {
             // Map contains key, so we've already been here. Better rotate or backtrack.
             match cur_direction.next() {
@@ -273,13 +274,11 @@ fn shortest_distance_to_oxygen(map: &HashMap<Index, Cell>) -> usize {
 
 fn time_to_fill_with_oxygen(map: &HashMap<Index, Cell>) -> usize {
     let mut distances = HashMap::<Index, usize>::new();
-    let oxygen_index = map
+    let oxygen_index = *map
         .iter()
-        .filter(|(_, &cell)| cell == Cell::OxygenSystem)
-        .next()
+        .find(|(_, &cell)| cell == Cell::OxygenSystem)
         .map(|(index, _)| index)
-        .expect("No oxygen system found")
-        .clone();
+        .expect("No oxygen system found");
     distances.insert(oxygen_index, 0);
     let mut queue = VecDeque::new();
     queue.push_back(oxygen_index);
@@ -311,8 +310,7 @@ fn send_move_command(program: &mut IntCode, direction: Direction) -> Response {
     let stopped = program.run_blocking_input().expect("Cannot run");
     assert!(stopped == Stopped::NeedInput);
     let value = program.pop_output().expect("No output");
-    let response = Response::try_from_value(value).expect("Invalid output");
-    response
+    Response::try_from_value(value).expect("Invalid output")
 }
 
 fn debug_print_map(map: &HashMap<Index, Cell>, cur_index: Index, cur_direction: Direction) {
