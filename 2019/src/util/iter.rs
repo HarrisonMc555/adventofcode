@@ -30,10 +30,13 @@ where
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Retrieve the first value
+        if self.num_duplicates == 0 {
+            // Don't advance original iterator if we don't need to
+            return None;
+        }
         if self.cached_value.is_none() || self.cur_count >= self.num_duplicates {
             self.cur_count = 0;
-            self.cached_value = Some(self.iter.next()?);
+            self.cached_value = self.iter.next();
         }
         let value = self.cached_value.as_ref()?;
         self.cur_count += 1;
@@ -41,8 +44,9 @@ where
     }
 }
 
+#[cfg(test)]
 mod test {
-    use super::IteratorExtensions;
+    use super::*;
 
     #[test]
     fn empty() {
@@ -76,6 +80,17 @@ mod test {
         assert_eq!(duplicated.next(), Some(&-3));
         assert_eq!(duplicated.next(), Some(&-3));
         assert_eq!(duplicated.next(), Some(&-3));
+        assert_eq!(duplicated.next(), None);
+    }
+
+    #[test]
+    fn zero() {
+        let iter = [1, 7, -3].iter().map(|_| {
+            panic!("Should not be called ever!");
+        });
+        let mut duplicated = iter.duplicate_values(0);
+        assert_eq!(duplicated.next(), None);
+        assert_eq!(duplicated.next(), None);
         assert_eq!(duplicated.next(), None);
     }
 }
