@@ -1,5 +1,6 @@
 #![allow(unused_variables, dead_code)]
 use crate::util::iter::IteratorExtensions;
+use itertools::unfold;
 use std::convert::TryFrom;
 
 const INPUT: &str = include_str!("../../static/day16.txt");
@@ -7,6 +8,9 @@ const INPUT: &str = include_str!("../../static/day16.txt");
 type Value = isize;
 type Digit = isize;
 const BASE_PATTERN: [Digit; 4] = [0, 1, 0, -1];
+
+// Notes: print(np.matrix([[0 if col - row < 0 else math.comb(n + col - row - 1, col - row) for col in range(4, 8)] for row in range(4, 8)]))
+// A8 = np.matrix([[1, 0, -1, 0, 1, 0, -1, 0], [0, 1, 1, 0, 0, -1, -1, 0], [0, 0, 1, 1, 1, 0, 0, 0], [0, 0, 0, 1, 1, 1, 1, 0], [0, 0, 0, 0, 1, 1, 1, 1], [0, 0, 0, 0, 0, 1, 1, 1], [0, 0, 0, 0, 0, 0, 1, 1], [0, 0, 0, 0, 0, 0, 0, 1]])
 
 pub fn main() {
     let answer1 = solve1(INPUT);
@@ -61,6 +65,19 @@ fn get_pattern(index: usize) -> impl Iterator<Item = Digit> {
         .cycle()
         .duplicate_values(index + 1)
         .skip(1)
+}
+
+fn binoms(k: isize) -> impl Iterator<Item = isize> {
+    let mut n = k;
+    let mut number = 1;
+    unfold(0, move |divisor| {
+        let return_number = number;
+        n += 1;
+        number *= n;
+        *divisor += 1;
+        number /= *divisor;
+        Some(return_number)
+    })
 }
 
 #[cfg(test)]
@@ -162,5 +179,17 @@ mod test {
         let output_first_8 = output[..8].to_vec();
         let expected_output_first_8 = digits("52432133");
         assert_eq!(output_first_8, expected_output_first_8);
+    }
+
+    #[test]
+    fn test_binoms() {
+        assert_eq!(
+            binoms(2).take(10).collect::<Vec<_>>(),
+            vec![1, 3, 6, 10, 15, 21, 28, 36, 45, 55]
+        );
+        assert_eq!(
+            binoms(3).take(10).collect::<Vec<_>>(),
+            vec![1, 4, 10, 20, 35, 56, 84, 120, 165, 220]
+        );
     }
 }
