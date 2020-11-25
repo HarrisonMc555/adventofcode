@@ -1,3 +1,4 @@
+use core::ops::{Add, Mul};
 use num_traits::*;
 use std::fmt::Debug;
 
@@ -126,6 +127,15 @@ where
         self.n /= self.base.clone();
         Some(v)
     }
+}
+
+#[allow(dead_code)]
+pub fn from_digits<T, I>(iter: I, base: T) -> T
+where
+    I: Iterator<Item = T>,
+    T: Clone + Add + Mul<Output = T> + Zero,
+{
+    iter.fold(zero(), |sum, digit| sum * base.clone() + digit)
 }
 
 #[cfg(test)]
