@@ -8,7 +8,8 @@ edition = "2018"
 
 [dependencies]
 num-traits = "0.2.10"
-array2d = { version = "0.2", git = "https://github.com/HarrisonMc555/array2d.git" }
+# array2d = { version = "0.2", git = "https://github.com/HarrisonMc555/array2d.git" }
+array2d = { path = "../../array2d" }
 num-bigint = "0.3.1"
 num-iter = "0.1.39"
 lazy_static = "1.4.0"
