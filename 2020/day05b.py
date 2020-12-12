@@ -14,16 +14,9 @@ def get_missing_seat_id(seat_ids):
     seat_ids = set(seat_ids)
     cur_seat_id = min(seat_ids)
     last_seat_id = max(seat_ids)
-    while cur_seat_id < last_seat_id:
-        before_seat_id = cur_seat_id - 1
-        after_seat_id = cur_seat_id + 1
-
-        cur = cur_seat_id in seat_ids
-        before = before_seat_id in seat_ids
-        after = after_seat_id in seat_ids
-        if before and not cur and after:
-            return cur_seat_id
-        cur_seat_id += 1
+    for seat_id in range(min(seat_ids), max(seat_ids)):
+        if seat_id not in seat_ids:
+            return seat_id
     raise Exception('No missing seat id')
 
 def get_lines_from_file(filename):
@@ -36,11 +29,10 @@ def get_seat_id(text):
     return row * SEAT_ID_ROW_MULTIPLIER + column
 
 NUM_ROW_CHARS = 7
-NUM_COLUMN_CHARS = 3
 BASE = 2
 def get_seat(text):
     row_chars = text[:NUM_ROW_CHARS]
-    column_chars = text[-NUM_COLUMN_CHARS:]
+    column_chars = text[NUM_ROW_CHARS:]
 
     row_chars = row_chars.replace('F', '0')
     row_chars = row_chars.replace('B', '1')
