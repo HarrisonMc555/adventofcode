@@ -92,31 +92,35 @@ def assemble_image_helper(tiles, matching_directions, remaining, grid, num_rows,
         next_grid = [r[:] for r in grid]
         row = next_grid[row_index]
         for rotation in range(len(Direction)):
-            if row_index > 0:
-                above_tile_id, above_rotation = grid[row_index - 1][column_index]
-                above_tile = tiles[above_tile_id]
-                if not tiles_match(above_tile, above_rotation, tile, rotation, Direction.DOWN):
-                    offset = row_index * num_columns + column_index
-                    print(f'{" " * offset}Tile #{tile_id} does not match tile above, #{above_tile_id}')
-                    continue
-            if column_index > 0:
-                left_tile_id, left_rotation = grid[row_index][column_index - 1]
-                left_tile = tiles[left_tile_id]
-                if not tiles_match(left_tile, left_rotation, tile, rotation, Direction.DOWN):
-                    print(f'{" " * offset}Tile #{tile_id} does not match tile left, #{left_tile_id}')
-                    continue
-            print(f'{" " * offset}Adding tile #{tile_id} with rotation {rotation} at row ' + \
-                  f'{row_index} and column {column_index}')
-            row.append((tile_id, rotation))
-            result = assemble_image_helper(tiles, matching_directions, next_remaining, next_grid,
-                                           num_rows, num_columns, next_row_index, next_column_index)
-            if result:
-                return result
-            del row[-1]
+            for flip_horizontal in [False, True]:
+                for flip_vertical in [False, True]:
+                    if row_index > 0:
+                        above_tile_id, above_rotation, above_flip_h, above_flip_v = grid[row_index - 1][column_index]
+                        above_tile = tiles[above_tile_id]
+                        if not tiles_match(above_tile, above_rotation, above_flip_h, above_flip_v,
+                                           tile, rotation, flip_horizontal, flip_vertical, Direction.DOWN):
+                            offset = row_index * num_columns + column_index
+                            print(f'{" " * offset}Tile #{tile_id} does not match tile above, #{above_tile_id}')
+                            continue
+                    if column_index > 0:
+                        left_tile_id, left_rotation, left_flip_h, left_flip_v = grid[row_index][column_index - 1]
+                        left_tile = tiles[left_tile_id]
+                        if not tiles_match(left_tile, left_rotation, left_flip_h, left_flip_v, tile,
+                                           rotation, flip_horizontal, flip_vertical, Direction.DOWN):
+                            print(f'{" " * offset}Tile #{tile_id} does not match tile left, #{left_tile_id}')
+                            continue
+                    print(f'{" " * offset}Adding tile #{tile_id} with rotation {rotation} at row ' + \
+                          f'{row_index} and column {column_index}')
+                    row.append((tile_id, rotation, flip_horizontal, flip_vertical))
+                    result = assemble_image_helper(tiles, matching_directions, next_remaining, next_grid,
+                                                   num_rows, num_columns, next_row_index, next_column_index)
+                    if result:
+                        return result
+                    del row[-1]
 
-def tiles_match(tile1, rotation1, tile2, rotation2, direction):
-    edge1 = get_rotated_edge(tile1, rotation1, direction)
-    edge2 = get_rotated_edge(tile2, rotation2, direction.opposite())
+def tiles_match(tile1, rotation1, flip1_h, flip1_v, tile2, rotation2, flip2_h, flip2_v, direction):
+    edge1 = get_rotated_edge(tile1, rotation1, flip1_h, flip1_v, direction)
+    edge2 = get_rotated_edge(tile2, rotation2, flip2_h, flip1_v, direction.opposite())
     return edges_match(edge1, edge2)
     
 def find_matching_directions(tile_id, tiles):
@@ -137,21 +141,27 @@ def edges_match(edge1, edge2):
     return all(x == y for x, y in zip(edge1, reversed(edge2)))
 
 def get_edge(tile, direction):
-    return get_rotated_edge(tile, 0, direction)
+    return get_rotated_edge(tile, 0, False, False, direction)
 
-def get_rotated_edge(tile, rotation, direction):
+def get_rotated_edge(tile, rotation, flip_h, flip_v, direction):
+    reverse = False
+    if direction == Direction.RIGHT or direction == Direction.LEFT:
+        reverse = flip_h
+    elif direction == Direction.UP or direction == Direction.DOWN:
+        reverse = flip_v
+    else:
+        raise Exception(f'Non-exhaustive case for {direction}')
     direction = add_wrapping_to_enum(direction, rotation)
-    if direction == Direction.RIGHT:
+    if direction == Direction.RIGHT and not flip_h or direction == Direction.LEFT and flip_h:
         return [row[-1] for row in tile]
-    elif direction == Direction.UP:
+    elif direction == Direction.UP and not flip_v or direction == Direction.DOWN and flip_v:
         return tile[0]
-    elif direction == Direction.LEFT:
+    elif direction == Direction.LEFT and not flip_h or direction == Direction.RIGHT and flip_h:
         return [row[0] for row in reversed(tile)]
-    elif direction == Direction.DOWN:
+    elif direction == Direction.DOWN and not flip_v or direction == Direction.UP and flip_v:
         return list(reversed(tile[-1]))
     else:
         raise Exception(f'Non-exhaustive case for {direction}')
-
 
 class Direction(Enum):
     RIGHT = auto()
