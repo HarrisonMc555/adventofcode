@@ -8,29 +8,24 @@ INPUT_FILE = 'input01.txt'
 def main():
     lines = get_lines(INPUT_FILE)
     nums = parse_nums(lines)
-    increase_count = get_increase_count(nums, 3)
+    increase_count = get_increase_count(sums_gen(nums, 3))
     print(increase_count)
 
-def get_increase_count(nums, window_size):
-    count = 0
+def sums_gen(nums, window_size):
     prev_sum = sum(nums[:window_size])
-    for window in windows(nums[1:], window_size):
-        cur_sum = sum(window)
-        if cur_sum > prev_sum:
-            count += 1
-        prev_sum = cur_sum
-    return count
+    yield prev_sum
+    for i in range(len(nums) - window_size):
+        cur_sum = prev_sum - nums[i] + nums[i + window_size]
+        yield cur_sum
 
-def windows(seq, n=2):
-    "Returns a sliding window (of width n) over data from the iterable"
-    "   s -> (s0,s1,...s[n-1]), (s1,s2,...,sn), ...                   "
-    it = iter(seq)
-    result = tuple(islice(it, n))
-    if len(result) == n:
-        yield result
-    for elem in it:
-        result = result[1:] + (elem,)
-        yield result
+def get_increase_count(nums_gen):
+    it = iter(nums_gen)
+    prev = next(it)
+    count = 0
+    for cur in it:
+        if cur > prev:
+            count += 1
+    return count
 
 def parse_nums(lines):
     return [int(line) for line in lines]
