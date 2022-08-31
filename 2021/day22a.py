@@ -64,7 +64,12 @@ def parse_line(line):
     return on, nums
 
 class Test(unittest.TestCase):
-    pass
+    def tests_parse_line(self):
+        command = parse_line('on x=10..12,y=10..12,z=10..12')
+        on, nums = command
+        x1, x2, y1, y2, z1, z2 = nums
+        self.assertTrue(on)
+        self.assertEqual([10, 12, 10, 12, 10, 12], nums)
 
 def get_lines(filename):
     with open(filename) as f:
