@@ -11,8 +11,6 @@ TILE_RE = re.compile('Tile (\d+):')
 def main():
     text = get_text(INPUT_FILE)
     tile_dict = parse_tiles(text)
-    tile = list(tile_dict.values())[0]
-    num = num_neighbors(tile_dict.values(), tile)
     corners = [tile.tile_id for tile in tile_dict.values()
                if num_neighbors(tile_dict.values(), tile) < 4]
     # print(corners)
@@ -72,10 +70,10 @@ class Side:
 @dataclass
 class Tile:
     tile_id: str
-    top: str
-    right: str
-    bottom: str
-    left: str
+    top: int
+    right: int
+    bottom: int
+    left: int
 
     @staticmethod
     def create(tile_id, tile_lines):
