@@ -3,22 +3,24 @@
 use std::fs;
 
 pub use day01::Day01;
+pub use day02::Day02;
 
 pub mod day01;
+pub mod day02;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Part {
     Part1,
     Part2,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Example {
     Real,
     Example,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Debug {
     NotDebug,
     Debug,
@@ -33,7 +35,15 @@ pub trait Day {
             Example::Example => "example",
         };
         let filename = format!("static/{}{:02}.txt", prefix, self.number());
-        fs::read_to_string(filename).expect("Should have been able to read the file")
+        fs::read_to_string(&filename)
+            .unwrap_or_else(|e| panic!("Should have been able to read file {}: {:?}", filename, e))
+    }
+    fn get_lines(&self, example: Example) -> Vec<String> {
+        self.read_file(example)
+            .trim()
+            .lines()
+            .map(str::to_owned)
+            .collect()
     }
 }
 
