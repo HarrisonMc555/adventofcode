@@ -1,6 +1,7 @@
 use crate::days::{Day, Debug, Example, Part};
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::collections::HashSet;
 
 pub struct Day01;
 
@@ -23,14 +24,19 @@ impl Day01 {
         run(self.read_file(example)).unwrap()
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> isize {
-        unimplemented!()
+    fn part2(&self, example: Example, _debug: Debug) -> isize {
+        run2(self.read_file(example)).unwrap()
     }
 }
 
-#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Default, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 struct State {
     orientation: Orientation,
+    position: Position,
+}
+
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+struct Position {
     east_west: isize,
     north_south: isize,
 }
@@ -59,7 +65,13 @@ enum Turn {
 fn run<T: AsRef<str>>(commands_str: T) -> Option<isize> {
     let commands = parse_commands(commands_str.as_ref())?;
     let state = follow_commands(commands);
-    Some(total_distance(&state))
+    Some(state.position.total_distance())
+}
+
+fn run2<T: AsRef<str>>(commands_str: T) -> Option<isize> {
+    let commands = parse_commands(commands_str.as_ref())?;
+    let position = first_visited_twice(commands)?;
+    Some(position.total_distance())
 }
 
 fn follow_commands<T>(commands: T) -> State
@@ -73,20 +85,50 @@ where
     state
 }
 
-impl State {
-    fn follow_command(&mut self, command: Command) {
-        self.orientation = self.orientation.turn(command.turn);
-        match self.orientation {
-            Orientation::North => self.north_south += command.distance,
-            Orientation::East => self.east_west += command.distance,
-            Orientation::South => self.north_south -= command.distance,
-            Orientation::West => self.east_west -= command.distance,
+fn first_visited_twice<T>(commands: T) -> Option<Position>
+where
+    T: IntoIterator<Item = Command>,
+{
+    let mut state = State::default();
+    let mut seen = HashSet::new();
+    seen.insert(state.position);
+    for command in commands.into_iter() {
+        let command: Command = command;
+        for position in state.follow_command(command) {
+            if seen.contains(&position) {
+                return Some(position);
+            }
+            seen.insert(position);
         }
+    }
+    None
+}
+
+impl State {
+    fn follow_command(&mut self, command: Command) -> Vec<Position> {
+        self.orientation = self.orientation.turn(command.turn);
+        let mut positions = Vec::new();
+        for _ in 0..command.distance {
+            self.position.advance(self.orientation);
+            positions.push(self.position)
+        }
+        positions
     }
 }
 
-fn total_distance(state: &State) -> isize {
-    state.north_south.abs() + state.east_west.abs()
+impl Position {
+    fn advance(&mut self, orientation: Orientation) {
+        match orientation {
+            Orientation::North => self.north_south += 1,
+            Orientation::East => self.east_west += 1,
+            Orientation::South => self.north_south -= 1,
+            Orientation::West => self.east_west -= 1,
+        }
+    }
+
+    fn total_distance(&self) -> isize {
+        self.north_south.abs() + self.east_west.abs()
+    }
 }
 
 impl Orientation {
@@ -145,6 +187,15 @@ impl Turn {
     }
 }
 
+impl Position {
+    fn new(east_west: isize, north_south: isize) -> Self {
+        Position {
+            east_west,
+            north_south,
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -154,20 +205,23 @@ mod test {
         let commands_str = "R2, L3";
         let commands = parse_commands(commands_str).unwrap();
         let state = follow_commands(commands);
-        assert_eq!(2, state.east_west);
-        assert_eq!(3, state.north_south);
-        assert_eq!(5, total_distance(&state));
+        assert_eq!(Position::new(2, 3), state.position);
+        assert_eq!(5, state.position.total_distance());
 
         let commands_str = "R2, R2, R2";
         let commands = parse_commands(commands_str).unwrap();
         let state = follow_commands(commands);
-        assert_eq!(0, state.east_west);
-        assert_eq!(-2, state.north_south);
-        assert_eq!(2, total_distance(&state));
+        assert_eq!(Position::new(0, -2), state.position);
+        assert_eq!(2, state.position.total_distance());
 
         assert_eq!(Some(12), run("R5, L5, R5, R3"));
     }
 
     #[test]
-    fn test_examples_part2() {}
+    fn test_examples_part2() {
+        let commands_str = "R8, R4, R4, R8";
+        let commands = parse_commands(commands_str).unwrap();
+        let position = first_visited_twice(commands);
+        assert_eq!(Some(Position::new(4, 0)), position);
+    }
 }
