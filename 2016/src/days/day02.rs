@@ -33,7 +33,7 @@ const MAX_ROW2: usize = 4;
 const MAX_COLUMN2: usize = 4;
 
 fn get_code(string: &str) -> Option<String> {
-    let lines = string.trim().split("\n");
+    let lines = string.trim().split('\n');
     let commands: Vec<Vec<Command>> = lines
         .map(|line| line.chars().map(Command::parse).collect())
         .collect::<Option<_>>()?;
@@ -41,7 +41,7 @@ fn get_code(string: &str) -> Option<String> {
 }
 
 fn get_code2(string: &str) -> Option<String> {
-    let lines = string.trim().split("\n");
+    let lines = string.trim().split('\n');
     let commands: Vec<Vec<Command>> = lines
         .map(|line| line.chars().map(Command::parse).collect())
         .collect::<Option<_>>()?;
@@ -97,7 +97,7 @@ impl Position {
     }
 
     fn follow_command2(&mut self, command: Command) {
-        let old_self = self.clone();
+        let old_self = *self;
         match command {
             Command::Up => self.row = self.row.saturating_sub(1),
             Command::Right => self.column = min(self.column + 1, MAX_COLUMN2),
@@ -109,18 +109,18 @@ impl Position {
         }
     }
 
-    fn valid2(&self) -> bool {
-        match (self.row, self.column) {
-            (0, 2) => true,
-            (1, 1) | (1, 2) | (1, 3) => true,
-            (2, 0) | (2, 1) | (2, 2) | (2, 3) | (2, 4) => true,
-            (3, 1) | (3, 2) | (3, 3) => true,
-            (4, 2) => true,
-            _ => false,
-        }
+    #[rustfmt::skip]
+    fn valid2(self) -> bool {
+        matches!((self.row, self.column),
+            (0, 2) |
+            (1, 1) | (1, 2) | (1, 3) |
+            (2, 0) | (2, 1) | (2, 2) | (2, 3) | (2, 4) |
+            (3, 1) | (3, 2) | (3, 3) |
+            (4, 2)
+        )
     }
 
-    fn to_keypad_digit(&self) -> usize {
+    fn to_keypad_digit(self) -> usize {
         match (self.row, self.column) {
             (0, 0) => 1,
             (0, 1) => 2,
@@ -135,7 +135,7 @@ impl Position {
         }
     }
 
-    fn to_keypad_digit2(&self) -> char {
+    fn to_keypad_digit2(self) -> char {
         match (self.row, self.column) {
             (0, 2) => '1',
             (1, 1) => '2',

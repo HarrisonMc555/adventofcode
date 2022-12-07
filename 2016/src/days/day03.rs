@@ -55,8 +55,7 @@ fn parse_triangles2(text: &str) -> Option<Vec<Triangle>> {
 }
 
 fn parse_line(line: &str) -> Option<[usize; NUM_PER_ROW]> {
-    line.trim()
-        .split_whitespace()
+    line.split_whitespace()
         .map(|w| w.parse().ok())
         .collect::<Option<Vec<_>>>()?
         .try_into()
