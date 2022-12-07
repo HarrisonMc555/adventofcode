@@ -1,3 +1,5 @@
+extern crate core;
+
 mod days;
 
 use std::ops::Not;
@@ -5,7 +7,7 @@ use std::ops::Not;
 use clap::Parser;
 use days::*;
 
-const DEFAULT_DAY: u32 = 6;
+const DEFAULT_DAY: u32 = 7;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -47,6 +49,7 @@ fn get_day(day_num: u32) -> Option<Box<dyn Day>> {
         4 => Box::new(Day04),
         5 => Box::new(Day05),
         6 => Box::new(Day06),
+        7 => Box::new(Day07),
         _ => return None,
     })
 }
