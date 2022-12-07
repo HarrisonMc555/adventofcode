@@ -23,12 +23,19 @@ impl Day07 {
         filetree.directories().map(Directory::calc_size).filter(|size| *size <= MAX_SIZE).sum()
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> usize {
-        unimplemented!()
+    fn part2(&self, example: Example, _debug: Debug) -> usize {
+        let commands = parse_commands(self.read_file(example).trim());
+        let filetree = assemble_filetree(&commands);
+        let cur_used = filetree.calc_size();
+        let cur_unused = TOTAL_SPACE - cur_used;
+        let required_deleted_size = REQUIRED_UNUSED_SPACE - cur_unused;
+        filetree.directories().map(Directory::calc_size).filter(|size| *size >= required_deleted_size).min().unwrap()
     }
 }
 
 const MAX_SIZE: usize = 100000;
+const TOTAL_SPACE: usize = 70000000;
+const REQUIRED_UNUSED_SPACE: usize = 30000000;
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 enum Item {
