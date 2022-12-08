@@ -7,7 +7,7 @@ use std::ops::Not;
 use clap::Parser;
 use days::*;
 
-const DEFAULT_DAY: u32 = 5;
+const DEFAULT_DAY: u32 = 6;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -48,6 +48,7 @@ fn get_day(day_num: u32) -> Option<Box<dyn Day>> {
         3 => Box::new(Day03),
         4 => Box::new(Day04),
         5 => Box::new(Day05),
+        6 => Box::new(Day06),
         _ => return None,
     })
 }
