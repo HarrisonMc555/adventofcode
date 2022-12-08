@@ -20,7 +20,11 @@ impl Day07 {
     fn part1(&self, example: Example, _debug: Debug) -> usize {
         let commands = parse_commands(self.read_file(example).trim());
         let filetree = assemble_filetree(&commands);
-        filetree.directories().map(Directory::calc_size).filter(|size| *size <= MAX_SIZE).sum()
+        filetree
+            .directories()
+            .map(Directory::calc_size)
+            .filter(|size| *size <= MAX_SIZE)
+            .sum()
     }
 
     fn part2(&self, example: Example, _debug: Debug) -> usize {
@@ -29,7 +33,12 @@ impl Day07 {
         let cur_used = filetree.calc_size();
         let cur_unused = TOTAL_SPACE - cur_used;
         let required_deleted_size = REQUIRED_UNUSED_SPACE - cur_unused;
-        filetree.directories().map(Directory::calc_size).filter(|size| *size >= required_deleted_size).min().unwrap()
+        filetree
+            .directories()
+            .map(Directory::calc_size)
+            .filter(|size| *size >= required_deleted_size)
+            .min()
+            .unwrap()
     }
 }
 
@@ -181,7 +190,7 @@ struct FilesIter<'a> {
     subdirectories_iter: std::slice::Iter<'a, Directory>,
 }
 
-impl <'a> DirectoriesIter<'a> {
+impl<'a> DirectoriesIter<'a> {
     fn new(directory: &'a Directory) -> Self {
         DirectoriesIter {
             directory,
@@ -192,7 +201,7 @@ impl <'a> DirectoriesIter<'a> {
     }
 }
 
-impl <'a> FilesIter<'a> {
+impl<'a> FilesIter<'a> {
     fn new(directory: &'a Directory) -> Self {
         FilesIter {
             directory,
@@ -203,7 +212,7 @@ impl <'a> FilesIter<'a> {
     }
 }
 
-impl <'a> Iterator for DirectoriesIter<'a> {
+impl<'a> Iterator for DirectoriesIter<'a> {
     type Item = &'a Directory;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -217,12 +226,13 @@ impl <'a> Iterator for DirectoriesIter<'a> {
                     return directory;
                 }
             }
-            self.subdirectory_file_iter = Box::new(Some(DirectoriesIter::new(self.subdirectories_iter.next()?)));
+            self.subdirectory_file_iter =
+                Box::new(Some(DirectoriesIter::new(self.subdirectories_iter.next()?)));
         }
     }
 }
 
-impl <'a> Iterator for FilesIter<'a> {
+impl<'a> Iterator for FilesIter<'a> {
     type Item = &'a File;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -235,7 +245,8 @@ impl <'a> Iterator for FilesIter<'a> {
                     return file;
                 }
             }
-            self.subdirectory_file_iter = Box::new(Some(FilesIter::new(self.subdirectories_iter.next()?)));
+            self.subdirectory_file_iter =
+                Box::new(Some(FilesIter::new(self.subdirectories_iter.next()?)));
         }
     }
 }
@@ -271,11 +282,14 @@ mod test {
         );
         assert_eq!(filetree.subdirectories.len(), 2);
         let a = &filetree.subdirectories[0];
-        assert_eq!(a.files, vec![
-            File::new(29116, "f".to_string()),
-            File::new(2557, "g".to_string()),
-            File::new(62596, "h.lst".to_string()),
-        ]);
+        assert_eq!(
+            a.files,
+            vec![
+                File::new(29116, "f".to_string()),
+                File::new(2557, "g".to_string()),
+                File::new(62596, "h.lst".to_string()),
+            ]
+        );
     }
 
     #[test]
@@ -296,15 +310,27 @@ mod test {
         let commands = parse_commands(text);
         let filetree = assemble_filetree(&commands);
         let mut iter = filetree.files();
-        assert_eq!(*iter.next().unwrap(), File::new(14848514, "b.txt".to_string()));
-        assert_eq!(*iter.next().unwrap(), File::new(8504156, "c.dat".to_string()));
+        assert_eq!(
+            *iter.next().unwrap(),
+            File::new(14848514, "b.txt".to_string())
+        );
+        assert_eq!(
+            *iter.next().unwrap(),
+            File::new(8504156, "c.dat".to_string())
+        );
         assert_eq!(*iter.next().unwrap(), File::new(29116, "f".to_string()));
         assert_eq!(*iter.next().unwrap(), File::new(2557, "g".to_string()));
         assert_eq!(*iter.next().unwrap(), File::new(62596, "h.lst".to_string()));
         assert_eq!(*iter.next().unwrap(), File::new(584, "i".to_string()));
         assert_eq!(*iter.next().unwrap(), File::new(4060174, "j".to_string()));
-        assert_eq!(*iter.next().unwrap(), File::new(8033020, "d.log".to_string()));
-        assert_eq!(*iter.next().unwrap(), File::new(5626152, "d.ext".to_string()));
+        assert_eq!(
+            *iter.next().unwrap(),
+            File::new(8033020, "d.log".to_string())
+        );
+        assert_eq!(
+            *iter.next().unwrap(),
+            File::new(5626152, "d.ext".to_string())
+        );
         assert_eq!(*iter.next().unwrap(), File::new(7214296, "k".to_string()));
     }
 
