@@ -22,8 +22,8 @@ impl Day06 {
         error_correct(&self.get_lines(example))
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> String {
-        todo!()
+    fn part2(&self, example: Example, _debug: Debug) -> String {
+        error_correct2(&self.get_lines(example))
     }
 }
 
@@ -41,12 +41,37 @@ fn error_correct<T: AsRef<str>>(lines: &[T]) -> String {
         .collect()
 }
 
+fn error_correct2<T: AsRef<str>>(lines: &[T]) -> String {
+    let num_letters = match lines.get(0) {
+        None => return "".to_string(),
+        Some(line) => line.as_ref().len(),
+    };
+    let grid: Vec<Vec<char>> = lines
+        .iter()
+        .map(|line| line.as_ref().chars().collect())
+        .collect();
+    (0..num_letters)
+        .map(|index| find_least_common_letter(&grid, index))
+        .collect()
+}
+
 fn find_most_common_letter<T: AsRef<[char]>>(lines: &[T], index: usize) -> char {
     *lines
         .iter()
         .filter_map(|line| line.as_ref().get(index))
         .collect::<Counter<_>>()
         .most_common()[0]
+        .0
+}
+
+fn find_least_common_letter<T: AsRef<[char]>>(lines: &[T], index: usize) -> char {
+    **lines
+        .iter()
+        .filter_map(|line| line.as_ref().get(index))
+        .collect::<Counter<_>>()
+        .iter()
+        .min_by_key(|(_, count)| *count)
+        .unwrap()
         .0
 }
 
@@ -68,8 +93,15 @@ mod test {
     }
 
     #[test]
-    fn test_examples_part2() {}
+    fn test_examples_part2() {
+        let text = include_str!("../../static/example06.txt");
+        let lines = text.trim().lines().collect::<Vec<_>>();
+        let corrected = error_correct2(&lines);
+        assert_eq!("advent", corrected)
+    }
 
     #[test]
-    fn test_real_part2() {}
+    fn test_real_part2() {
+        assert_eq!("batwpask", Day06.part2(Example::Real, Debug::NotDebug));
+    }
 }
