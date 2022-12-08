@@ -111,7 +111,7 @@ impl Room {
         // println!("Counter: {:?}", counter);
         let mut expected_checksum = Vec::new();
         while expected_checksum.len() < CHECKSUM_LEN {
-            let most_common = counter.most_common_tiebreaker(|a, b| a.cmp(&b));
+            let most_common = counter.most_common_tiebreaker(|a, b| a.cmp(b));
             // println!("\tMost common letters: {:?}", most_common);
             for (letter, _) in most_common {
                 // println!("\t\tAdding {} to expected checksum", letter);
