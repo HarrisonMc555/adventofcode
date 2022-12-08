@@ -25,8 +25,8 @@ impl Day04 {
         get_answer(&self.read_file(example)).unwrap()
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> usize {
-        unimplemented!()
+    fn part2(&self, example: Example, _debug: Debug) -> usize {
+        get_answer2(&self.read_file(example)).unwrap()
     }
 }
 
@@ -43,6 +43,52 @@ fn get_answer(text: &str) -> Option<usize> {
     )
 }
 
+fn get_answer2(text: &str) -> Option<usize> {
+    let rooms = parse_rooms(text)?;
+    find_north_pole_room(&rooms).map(|room| room.sector_id)
+}
+
+fn find_north_pole_room(rooms: &[Room]) -> Option<&Room> {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"north.?pole").unwrap();
+    }
+    let mut north_pole_room = None;
+    for room in rooms {
+        if RE.is_match(&room.decrypt()) {
+            match north_pole_room {
+                None => north_pole_room = Some(room),
+                // Multiple matches
+                Some(_) => return None,
+            }
+        }
+    }
+    north_pole_room
+}
+
+impl Room {
+    fn decrypt(&self) -> String {
+        self.letters
+            .iter()
+            .map(|c| shift(*c, self.sector_id))
+            .collect()
+    }
+}
+
+fn shift(letter: char, amount: usize) -> char {
+    match letter {
+        'a'..='z' => rotate(letter, amount),
+        '-' => ' ',
+        c => c,
+    }
+}
+
+const NUM_LETTERS: usize = 26;
+fn rotate(letter: char, amount: usize) -> char {
+    let index = letter as usize - 'a' as usize;
+    let new_index = (index + amount) % NUM_LETTERS;
+    char::from_u32(('a' as usize + new_index) as u32).unwrap()
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 struct Room {
     letters: Vec<char>,
@@ -57,7 +103,11 @@ fn parse_rooms(text: &str) -> Option<Vec<Room>> {
 impl Room {
     fn is_real(&self) -> bool {
         // println!("Is this room real? {:?}", self);
-        let mut counter = self.letters.iter().collect::<Counter<_>>();
+        let mut counter = self
+            .letters
+            .iter()
+            .filter(|c| c.is_ascii_alphabetic())
+            .collect::<Counter<_>>();
         // println!("Counter: {:?}", counter);
         let mut expected_checksum = Vec::new();
         while expected_checksum.len() < CHECKSUM_LEN {
@@ -81,13 +131,7 @@ impl Room {
             static ref RE: Regex = Regex::new(r"^([a-z-]+)-(\d+)\[([a-z]+)\]$").unwrap();
         }
         let caps = RE.captures(line)?;
-        let letters = caps
-            .get(1)
-            .unwrap()
-            .as_str()
-            .chars()
-            .filter(char::is_ascii_alphabetic)
-            .collect();
+        let letters = caps.get(1).unwrap().as_str().chars().collect();
         let sector_id = caps.get(2).unwrap().as_str().parse().ok()?;
         let checksum = to_chars(caps.get(3).unwrap().as_str());
         Some(Room {
@@ -122,7 +166,16 @@ mod test {
     }
 
     #[test]
-    fn test_examples_part2() {}
+    fn test_examples_part2() {
+        let room = Room::parse("qzmt-zixmtkozy-ivhz-343[xxxxx]").unwrap();
+        let decrypted = room.decrypt();
+        assert_eq!("very encrypted name", decrypted);
+    }
+
+    #[test]
+    fn test_real_part2() {
+        assert_eq!(267, Day04.part2(Example::Real, Debug::NotDebug));
+    }
 
     fn is_real(line: &str) -> bool {
         let room = Room::parse(line).unwrap();
