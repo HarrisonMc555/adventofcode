@@ -50,9 +50,9 @@ where
         .chunks_exact(3)
         .map(|arr| {
             (
-                to_chars(&arr[0].as_ref()),
-                to_chars(&arr[1].as_ref()),
-                to_chars(&arr[2].as_ref()),
+                to_chars(arr[0].as_ref()),
+                to_chars(arr[1].as_ref()),
+                to_chars(arr[2].as_ref()),
             )
         })
         .collect()

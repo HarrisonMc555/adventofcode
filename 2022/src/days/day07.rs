@@ -72,7 +72,7 @@ enum Command {
 }
 
 fn parse_commands(text: &str) -> Vec<Command> {
-    let lines = text.split("\n");
+    let lines = text.split('\n');
     let mut commands = Vec::new();
     let mut cur_command = None;
     for line in lines {
@@ -112,9 +112,8 @@ where
             }
             Command::Ls(files) => {
                 for file in files {
-                    match file {
-                        Item::File(file) => cur_directory.files.push(file.clone()),
-                        _ => {}
+                    if let Item::File(file) = file {
+                        cur_directory.files.push(file.clone())
                     }
                 }
             }
@@ -138,7 +137,7 @@ impl Item {
         if let Some(name) = line.strip_prefix("dir ") {
             return Item::Directory(Directory::new(name.to_string()));
         }
-        let parts = line.split(" ").collect::<Vec<_>>();
+        let parts = line.split(' ').collect::<Vec<_>>();
         let (size, name) = match parts.as_slice() {
             [size, name] => (size, name),
             _ => panic!(),

@@ -31,16 +31,16 @@ impl Day01 {
             .iter()
             .map(|items| items.iter().sum::<u32>())
             .collect::<Vec<_>>();
-        calories.sort_unstable_by(|a, b| b.cmp(&a));
+        calories.sort_unstable_by(|a, b| b.cmp(a));
         let top_3_sum = calories.iter().take(3).sum();
-        return top_3_sum;
+        top_3_sum
     }
 }
 
 fn parse_elves(text: &str) -> Vec<Vec<u32>> {
     text.split("\n\n")
         .map(|s| {
-            s.split("\n")
+            s.split('\n')
                 .filter(|w| !w.is_empty())
                 .map(|w| w.parse().unwrap())
                 .collect::<Vec<_>>()

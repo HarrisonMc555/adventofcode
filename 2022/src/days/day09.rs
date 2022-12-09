@@ -289,7 +289,7 @@ impl Command {
         let mut iter = text.split_whitespace();
         let direction = iter.next()?;
         let amount = iter.next()?;
-        if iter.next() != None {
+        if iter.next().is_some() {
             return None;
         }
         let direction = Direction::parse(direction)?;
