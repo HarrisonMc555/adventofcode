@@ -1,7 +1,17 @@
 use crate::days::{Day, Debug, Example, Part};
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+
+const DEBUG: bool = false;
+#[macro_export]
+macro_rules! debug_println {
+    ($($tts:tt)*) => {
+        if (DEBUG) {
+            println!($($tts)*);
+        }
+    }
+}
 
 pub struct Day09;
 
@@ -25,8 +35,9 @@ impl Day09 {
         count_tail_positions(&commands)
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> usize {
-        todo!()
+    fn part2(&self, example: Example, _debug: Debug) -> usize {
+        let commands = parse(&self.read_file(example)).unwrap();
+        count_tail_positions2(&commands)
     }
 }
 
@@ -36,7 +47,12 @@ struct State {
     tail: Position,
 }
 
-#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq)]
+struct State2 {
+    knots: Vec<Position>,
+}
+
+#[derive(Debug, Default, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 struct Position {
     x: i32,
     y: i32,
@@ -59,29 +75,62 @@ enum Direction {
 fn count_tail_positions(commands: &[Command]) -> usize {
     let mut state = State::default();
     let mut tail_positions = HashSet::new();
-    tail_positions.insert(state.tail);
+    tail_positions.insert(state.tail.clone());
 
-    // fn print_state(state: &State) {
-    //     let display_x = (0, 6);
-    //     let display_y = (0, 6);
-    //     println!(
-    //         "{}",
-    //         state
-    //             .to_string_rows(Position::default(), display_x, display_y)
-    //             .join("\n")
-    //     );
-    //     println!();
-    // }
-    // println!("== Initial State ==\n");
-    // print_state(&state);
+    fn print_state(state: &State) {
+        let display_x = (0, 6);
+        let display_y = (0, 5);
+        debug_println!(
+            "{}",
+            state
+                .to_string_rows(Position::default(), display_x, display_y)
+                .join("\n")
+        );
+        debug_println!();
+    }
+    debug_println!("== Initial State ==\n");
+    print_state(&state);
 
     for command in commands {
-        // println!("== {} {} ==\n", command.direction.to_char(), command.amount);
+        debug_println!("== {} {} ==\n", command.direction.to_char(), command.amount);
+
         for _ in 0..command.amount {
             state.step(command.direction);
-            tail_positions.insert(state.tail);
-            // println!("Head: {:?}, Tail: {:?}", state.head, state.tail);
-            // print_state(&state);
+            tail_positions.insert(state.tail.clone());
+            debug_println!("Head: {:?}, Tail: {:?}", state.head, state.tail);
+            print_state(&state);
+        }
+    }
+    tail_positions.len()
+}
+
+const NUM_KNOTS: usize = 10;
+fn count_tail_positions2(commands: &[Command]) -> usize {
+    let mut state = State2::new(NUM_KNOTS);
+    let mut tail_positions = HashSet::new();
+    tail_positions.insert(state.knots.last().cloned().unwrap());
+
+    fn print_state(state: &State2) {
+        let display_x = (0, 6);
+        let display_y = (0, 5);
+        debug_println!(
+            "{}",
+            state
+                .to_string_rows(Position::default(), display_x, display_y)
+                .join("\n")
+        );
+        debug_println!();
+    }
+    debug_println!("== Initial State ==\n");
+    print_state(&state);
+
+    for command in commands {
+        debug_println!("== {} {} ==\n", command.direction.to_char(), command.amount);
+
+        for _ in 0..command.amount {
+            state.step(command.direction);
+            tail_positions.insert(state.knots.last().cloned().unwrap());
+            print_state(&state);
         }
     }
     tail_positions.len()
@@ -121,32 +170,80 @@ impl State {
         (to - from).signum()
     }
 
-    // fn to_string_rows(
-    //     &self,
-    //     start: Position,
-    //     (min_x, max_x): (i32, i32),
-    //     (min_y, max_y): (i32, i32),
-    // ) -> Vec<String> {
-    //     (min_y..max_y)
-    //         .rev()
-    //         .map(|y| {
-    //             (min_x..max_x)
-    //                 .map(move |x| {
-    //                     let position = Position { x, y };
-    //                     if self.head == position {
-    //                         'H'
-    //                     } else if self.tail == position {
-    //                         'T'
-    //                     } else if start == position {
-    //                         's'
-    //                     } else {
-    //                         '.'
-    //                     }
-    //                 })
-    //                 .collect()
-    //         })
-    //         .collect()
-    // }
+    fn to_string_rows(
+        &self,
+        start: Position,
+        (min_x, max_x): (i32, i32),
+        (min_y, max_y): (i32, i32),
+    ) -> Vec<String> {
+        (min_y..max_y)
+            .rev()
+            .map(|y| {
+                (min_x..max_x)
+                    .map(|x| {
+                        let position = Position { x, y };
+                        if self.head == position {
+                            'H'
+                        } else if self.tail == position {
+                            'T'
+                        } else if start == position {
+                            's'
+                        } else {
+                            '.'
+                        }
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+}
+
+impl State2 {
+    fn new(num_knots: usize) -> Self {
+        State2 {
+            knots: (0..num_knots).map(|_| Position::default()).collect(),
+        }
+    }
+
+    fn step(&mut self, direction: Direction) {
+        let head = self.knots.get_mut(0).unwrap();
+        head.step(direction);
+        for index in 1..self.knots.len() {
+            let prev = self.knots[index - 1].clone();
+            let cur = &mut self.knots[index];
+            cur.follow(&prev);
+        }
+    }
+
+    fn to_string_rows(
+        &self,
+        start: Position,
+        (min_x, max_x): (i32, i32),
+        (min_y, max_y): (i32, i32),
+    ) -> Vec<String> {
+        let mut grid = HashMap::new();
+        grid.insert(start, 's');
+        for (index, knot) in self.knots.iter().enumerate().rev() {
+            let char = if index == 0 {
+                'H'
+            } else {
+                index.to_string().chars().next().unwrap_or(' ')
+            };
+            grid.insert(knot.clone(), char);
+        }
+
+        (min_y..max_y)
+            .rev()
+            .map(|y| {
+                (min_x..max_x)
+                    .map(|x| {
+                        let position = Position { x, y };
+                        grid.get(&position).copied().unwrap_or('.')
+                    })
+                    .collect()
+            })
+            .collect()
+    }
 }
 
 impl Position {
@@ -157,6 +254,22 @@ impl Position {
             Direction::Down => self.y -= 1,
             Direction::Left => self.x -= 1,
         }
+    }
+
+    fn follow(&mut self, other: &Position) {
+        if self.is_touching(other) {
+            return;
+        }
+        self.x += Position::get_step(self.x, other.x);
+        self.y += Position::get_step(self.y, other.y);
+    }
+
+    fn is_touching(&self, other: &Position) -> bool {
+        (self.x - other.x).abs() <= 1 && (self.y - other.y).abs() <= 1
+    }
+
+    fn get_step(from: i32, to: i32) -> i32 {
+        (to - from).signum()
     }
 }
 
@@ -274,5 +387,8 @@ mod test {
     #[test]
     fn test_examples_part2() {
         let text = include_str!("../../static/example09.txt");
+        let commands = parse(text).unwrap();
+        let num_tail_positions = count_tail_positions2(&commands);
+        assert_eq!(1, num_tail_positions);
     }
 }
