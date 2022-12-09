@@ -1,5 +1,4 @@
 use crate::days::{Day, Debug, Example, Part};
-use std::iter::Peekable;
 
 pub struct Day09;
 
@@ -165,84 +164,6 @@ fn decompressed_len(input: &str) -> Option<usize> {
         len += count * decompressed_length;
     }
     Some(len)
-
-    //
-    //
-    // let mut state = State::Normal;
-    // fn append_digit(mut num: usize, digit: char) -> Option<usize> {
-    //     let digit = digit.to_digit(BASE)? as usize;
-    //     Some(num * BASE as usize + digit)
-    // }
-    // for c in input.chars() {
-    //     match &state {
-    //         State::Normal if c == '(' => state = State::Length(0),
-    //         State::Normal => output.push(c),
-    //         State::Length(length) if c == 'x' => state = State::Repeat(*length, 0),
-    //         State::Length(length) => state = State::Length(append_digit(*length, c)?),
-    //         State::Repeat(length, count) if c == ')' => {
-    //             state = State::Repeating {
-    //                 length: *length,
-    //                 count: *count,
-    //             }
-    //         }
-    //         State::Repeat(length, count) => {
-    //             state = State::Repeat(*length, append_digit(*count, c)?)
-    //         }
-    //         State::Repeating { length, count: 0 } => state = State::Normal,
-    //         State::Repeating { length, count } => output.extend(),
-    //     }
-    // }
-    // Some(output)
-}
-
-// enum State {
-//     Normal,
-//     Length(usize),
-//     Repeat(usize, usize),
-//     FindingRepeat { length: usize, count: usize },
-//     Repeating { length: usize, count: usize },
-// }
-
-trait PeekableExt<T: Iterator>: Sized {
-    fn take_until<P>(self, predicate: P) -> TakeUntil<T, P>
-    where
-        P: FnMut(&T::Item) -> bool;
-}
-
-impl<T: Iterator> PeekableExt<T> for Peekable<T> {
-    fn take_until<P>(self, predicate: P) -> TakeUntil<T, P>
-    where
-        P: FnMut(&T::Item) -> bool,
-    {
-        TakeUntil {
-            inner: self,
-            predicate,
-        }
-    }
-}
-
-struct TakeUntil<T: Iterator, P>
-where
-    P: FnMut(&T::Item) -> bool,
-{
-    inner: Peekable<T>,
-    predicate: P,
-}
-
-impl<T: Iterator, P> Iterator for TakeUntil<T, P>
-where
-    P: FnMut(&T::Item) -> bool,
-{
-    type Item = T::Item;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(next) = self.inner.peek() {
-            if (self.predicate)(next) {
-                return self.inner.next();
-            }
-        }
-        None
-    }
 }
 
 #[cfg(test)]
