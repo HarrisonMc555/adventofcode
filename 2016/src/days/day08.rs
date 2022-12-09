@@ -1,6 +1,7 @@
 use array2d::Array2D;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::fmt::{Display, Formatter};
 
 use crate::days::{Day, Debug, Example, Part};
 
@@ -21,7 +22,7 @@ impl Day for Day08 {
 }
 
 impl Day08 {
-    fn part1(&self, example: Example, _debug: Debug) -> usize {
+    fn part1(&self, example: Example, _debug: Debug) -> String {
         let mut screen = Screen::default();
         let commands = parse(&self.read_file(example)).unwrap();
         for command in commands {
@@ -32,10 +33,16 @@ impl Day08 {
             .elements_row_major_iter()
             .filter(|cell| **cell == Cell::On)
             .count()
+            .to_string()
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> usize {
-        todo!()
+    fn part2(&self, example: Example, _debug: Debug) -> String {
+        let mut screen = Screen::default();
+        let commands = parse(&self.read_file(example)).unwrap();
+        for command in commands {
+            screen.apply_command(&command);
+        }
+        format!("{}", screen)
     }
 }
 
@@ -71,6 +78,15 @@ struct RotateRow {
 struct RotateColumn {
     column: usize,
     amount: usize,
+}
+
+impl Cell {
+    fn to_char(self) -> char {
+        match self {
+            Cell::On => '#',
+            Cell::Off => '.',
+        }
+    }
 }
 
 impl Screen {
@@ -127,6 +143,18 @@ impl Screen {
                 *cell = value;
             }
         }
+    }
+}
+
+impl Display for Screen {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        for row in self.0.rows_iter() {
+            for cell in row {
+                write!(f, "{}", cell.to_char())?;
+            }
+            writeln!(f)?;
+        }
+        Ok(())
     }
 }
 
@@ -258,15 +286,20 @@ mod test {
 
     #[test]
     fn test_real_part1() {
-        assert_eq!(119, Day08.part1(Example::Real, Debug::NotDebug));
+        assert_eq!("119", Day08.part1(Example::Real, Debug::NotDebug));
     }
 
     #[test]
-    fn test_examples_part2() {}
-
-    #[test]
     fn test_real_part2() {
-        // assert_eq!(242, Day08.part2(Example::Real, Debug::NotDebug));
+        let expected = "\
+            ####.####.#..#.####..###.####..##...##..###...##..\n\
+            ...#.#....#..#.#....#....#....#..#.#..#.#..#.#..#.\n\
+            ..#..###..####.###..#....###..#..#.#....#..#.#..#.\n\
+            .#...#....#..#.#.....##..#....#..#.#.##.###..#..#.\n\
+            #....#....#..#.#.......#.#....#..#.#..#.#....#..#.\n\
+            ####.#....#..#.#....###..#.....##...###.#.....##..\n\
+            ";
+        assert_eq!(expected, Day08.part2(Example::Real, Debug::NotDebug));
     }
 
     fn to_string(screen: &Screen) -> String {
