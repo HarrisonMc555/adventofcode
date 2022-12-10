@@ -36,11 +36,17 @@ impl Day10 {
             Example::Real => (&COMPARE_VALUE_1, &COMPARE_VALUE_2),
             Example::Example => (&EXAMPLE_COMPARE_VALUE_1, &EXAMPLE_COMPARE_VALUE_2),
         };
-        find_bot_that_compares_values(&instructions, compare_value_1, compare_value_2).unwrap().0
+        find_bot_that_compares_values(&instructions, compare_value_1, compare_value_2)
+            .unwrap()
+            .0
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> u32 {
-        todo!()
+    fn part2(&self, example: Example, _debug: Debug) -> u32 {
+        let instructions = parse(&self.read_file(example)).unwrap();
+        let outputs = run_instructions(&instructions);
+        (0..=2)
+            .map(|output_id| outputs.get(&OutputID(output_id)).unwrap()[0].0)
+            .product()
     }
 }
 
@@ -111,7 +117,7 @@ fn find_bot_that_compares_values<'a>(
             .or_insert_with(VecDeque::new)
             .push_back(&initial.value);
     }
-    let mut output_to_values = HashMap::<&OutputID, VecDeque<&ValueID>>::new();
+    let mut output_to_values = HashMap::<&OutputID, Vec<&ValueID>>::new();
 
     while let Some(bot_id) = dirty_bot_ids.pop_front() {
         debug_println!("Processing bot {}", bot_id.0);
@@ -151,8 +157,8 @@ fn find_bot_that_compares_values<'a>(
                 debug_println!("\tGive to output {}", low_output_id.0);
                 output_to_values
                     .entry(&low_output_id)
-                    .or_insert_with(VecDeque::new)
-                    .push_back(low);
+                    .or_insert_with(Vec::new)
+                    .push(low);
             }
         }
         match &give.high {
@@ -168,13 +174,93 @@ fn find_bot_that_compares_values<'a>(
                 debug_println!("\tGive to output {}", high_output_id.0);
                 output_to_values
                     .entry(&high_output_id)
-                    .or_insert_with(VecDeque::new)
-                    .push_back(high);
+                    .or_insert_with(Vec::new)
+                    .push(high);
             }
         }
     }
 
     None
+}
+
+fn run_instructions(instructions: &Instructions) -> HashMap<&OutputID, Vec<&ValueID>> {
+    let bot_to_give = instructions
+        .gives
+        .iter()
+        .map(|give| (&give.bot, give))
+        .collect::<HashMap<_, _>>();
+    let mut dirty_bot_ids = instructions
+        .initials
+        .iter()
+        .map(|initial| &initial.bot)
+        .collect::<VecDeque<_>>();
+    let mut bot_to_values = HashMap::<&BotID, VecDeque<&ValueID>>::new();
+    for initial in instructions.initials.iter() {
+        bot_to_values
+            .entry(&initial.bot)
+            .or_insert_with(VecDeque::new)
+            .push_back(&initial.value);
+    }
+    let mut output_to_values = HashMap::<&OutputID, Vec<&ValueID>>::new();
+
+    while let Some(bot_id) = dirty_bot_ids.pop_front() {
+        debug_println!("Processing bot {}", bot_id.0);
+        debug_println!("\t{} dirty bot IDs", dirty_bot_ids.len());
+        let Some(values) = bot_to_values.get_mut(&bot_id) else {
+            debug_println!("\tNo values for bot {}", bot_id.0);
+            continue;
+        };
+        if values.len() < 2 {
+            debug_println!("\tBot {} only had {} values", bot_id.0, values.len());
+            continue;
+        }
+        let (Some(value1), Some(value2)) = (values.pop_front(), values.pop_front()) else {
+            panic!("Length was less than 2 but couldn't pop 2 values");
+        };
+        let (low, high) = get_low_high(value1, value2);
+
+        let Some(give) = bot_to_give.get(&bot_id) else {
+            debug_println!("\tBot {} doesn't know who to give things to!", bot_id.0);
+            continue;
+        };
+
+        match &give.low {
+            Destination::Bot(low_bot_id) => {
+                debug_println!("\tGive to bot {}", low_bot_id.0);
+                bot_to_values
+                    .entry(&low_bot_id)
+                    .or_insert_with(VecDeque::new)
+                    .push_back(low);
+                dirty_bot_ids.push_back(&low_bot_id);
+            }
+            Destination::Output(low_output_id) => {
+                debug_println!("\tGive to output {}", low_output_id.0);
+                output_to_values
+                    .entry(&low_output_id)
+                    .or_insert_with(Vec::new)
+                    .push(low);
+            }
+        }
+        match &give.high {
+            Destination::Bot(high_bot_id) => {
+                debug_println!("\tGive to bot {}", high_bot_id.0);
+                bot_to_values
+                    .entry(&high_bot_id)
+                    .or_insert_with(VecDeque::new)
+                    .push_back(high);
+                dirty_bot_ids.push_back(&high_bot_id);
+            }
+            Destination::Output(high_output_id) => {
+                debug_println!("\tGive to output {}", high_output_id.0);
+                output_to_values
+                    .entry(&high_output_id)
+                    .or_insert_with(Vec::new)
+                    .push(high);
+            }
+        }
+    }
+
+    output_to_values
 }
 
 fn get_low_high<'a>(value1: &'a ValueID, value2: &'a ValueID) -> (&'a ValueID, &'a ValueID) {
@@ -330,7 +416,11 @@ mod test {
     #[test]
     fn test_examples_part1() {
         let instructions = parse(include_str!("../../static/example10.txt")).unwrap();
-        let actual = find_bot_that_compares_values(&instructions, &EXAMPLE_COMPARE_VALUE_1, &EXAMPLE_COMPARE_VALUE_2);
+        let actual = find_bot_that_compares_values(
+            &instructions,
+            &EXAMPLE_COMPARE_VALUE_1,
+            &EXAMPLE_COMPARE_VALUE_2,
+        );
         let expected = BotID(2);
         assert_eq!(Some(&expected), actual);
     }
@@ -341,10 +431,7 @@ mod test {
     }
 
     #[test]
-    fn test_examples_part2() {}
-
-    #[test]
     fn test_real_part2() {
-        // assert_eq!(0, Day10.part2(Example::Real, Debug::NotDebug));
+        assert_eq!(55637, Day10.part2(Example::Real, Debug::NotDebug));
     }
 }
