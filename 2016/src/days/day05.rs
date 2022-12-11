@@ -1,6 +1,5 @@
 use md5::Digest;
-use std::collections::HashMap;
-
+use std::fmt::Write;
 use crate::days::{Day, Debug, Example, Part};
 
 pub struct Day05;
@@ -21,11 +20,11 @@ impl Day for Day05 {
 
 impl Day05 {
     fn part1(&self, example: Example, _debug: Debug) -> String {
-        find_password(&self.read_bytes(example))
+        find_password(&self.read_file(example))
     }
 
     fn part2(&self, example: Example, _debug: Debug) -> String {
-        find_password2(&self.read_bytes(example))
+        find_password2(&self.read_file(example))
     }
 }
 
@@ -33,27 +32,47 @@ const NUM_PASSWORD_DIGITS: usize = 8;
 const LEADING_ZEROS_PREFIX: &str = "00000";
 const NUM_LEADING_ZEROS: usize = LEADING_ZEROS_PREFIX.len();
 
-fn find_password(door_id: &[u8]) -> String {
-    (0..)
-        .map(|index| create_input(door_id, index))
-        .map(md5::compute)
-        .filter_map(get_password_char)
-        // .filter_map(|index| get_password_char_all(door_id, index))
-        .take(NUM_PASSWORD_DIGITS)
-        .collect()
-}
-
-fn find_password2(door_id: &[u8]) -> String {
-    let mut password_chars = HashMap::new();
-    for (index, char) in find_password_index_chars(door_id) {
-        password_chars.entry(index).or_insert(char);
-        if password_chars.len() >= NUM_PASSWORD_DIGITS {
+fn find_password(door_id: &str) -> String {
+    let mut password = String::new();
+    let mut input = door_id.to_owned();
+    for index in 0.. {
+        input.truncate(door_id.len());
+        write!(&mut input, "{}", index).unwrap();
+        let digest = md5::compute(input.as_bytes()).0;
+        let letter = match digest {
+            [0, 0, x, ..] if x & 0xF0 == 0 => x & 0x0F,
+            _ => continue,
+        };
+        write!(&mut password, "{:x}", letter).unwrap();
+        if password.len() >= NUM_PASSWORD_DIGITS {
             break;
         }
     }
-    (0..NUM_PASSWORD_DIGITS)
-        .map(|index| password_chars[&index])
-        .collect()
+    password
+}
+
+fn find_password2(door_id: &str) -> String {
+    let mut input = door_id.to_owned();
+    let mut password_chars = vec![None; NUM_PASSWORD_DIGITS];
+    for index in 0.. {
+        input.truncate(door_id.len());
+        write!(&mut input, "{}", index).unwrap();
+        let digest = md5::compute(input.as_bytes()).0;
+        let (position, letter) = match digest {
+            [0, 0, x, y, ..] if x & 0xF0 == 0 => (x & 0x0F, (y & 0xF0) >> 4),
+            _ => continue,
+        };
+        if let Some(c) = password_chars.get_mut(position as usize) {
+            if c.is_none() {
+                let letter = format!("{:x}", letter).chars().next().unwrap();
+                *c = Some(letter);
+            }
+        }
+        if password_chars.iter().all(|c| c.is_some()) {
+            break;
+        }
+    }
+    password_chars.into_iter().flatten().collect()
 }
 
 fn get_password_char_all(door_id: &[u8], index: usize) -> Option<char> {
@@ -123,6 +142,15 @@ fn to_ascii_digits(index: usize) -> Vec<u8> {
     index.to_string().chars().map(|c| c as u8).collect()
 }
 
+// fn to_ascii_digits_iter(index: usize) -> impl Iterator<Item = u8> {
+//     let num_digits = if index == 0 {
+//         1
+//     } else {
+//         (index as f64).log10() as u8
+//     };
+//     todo!()
+// }
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -130,7 +158,7 @@ mod test {
     #[test]
     #[ignore]
     fn test_examples_part1() {
-        assert_eq!("18f47a30", find_password(b"abc"));
+        assert_eq!("18f47a30", find_password("abc"));
     }
 
     #[test]
@@ -142,7 +170,7 @@ mod test {
     #[test]
     #[ignore]
     fn test_examples_part2() {
-        assert_eq!("05ace8e3", find_password2(b"abc"));
+        assert_eq!("05ace8e3", find_password2("abc"));
     }
 
     #[test]
