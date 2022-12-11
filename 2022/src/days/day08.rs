@@ -100,7 +100,7 @@ fn parse_trees(text: &str) -> Option<Array2D<u32>> {
         .split('\n')
         .map(parse_line)
         .collect::<Option<Vec<_>>>()?;
-    Some(Array2D::from_rows(&grid).ok()?)
+    Array2D::from_rows(&grid).ok()
 }
 
 fn parse_line(line: &str) -> Option<Vec<u32>> {
