@@ -99,7 +99,7 @@ fn find_bot_that_compares_values<'a>(
     compare_value_1: &ValueID,
     compare_value_2: &ValueID,
 ) -> Option<&'a BotID> {
-    let (compare_value_low, compare_value_high) = get_low_high(&compare_value_1, &compare_value_2);
+    let (compare_value_low, compare_value_high) = get_low_high(compare_value_1, compare_value_2);
     let bot_to_give = instructions
         .gives
         .iter()
@@ -148,15 +148,15 @@ fn find_bot_that_compares_values<'a>(
             Destination::Bot(low_bot_id) => {
                 debug_println!("\tGive to bot {}", low_bot_id.0);
                 bot_to_values
-                    .entry(&low_bot_id)
+                    .entry(low_bot_id)
                     .or_insert_with(VecDeque::new)
                     .push_back(low);
-                dirty_bot_ids.push_back(&low_bot_id);
+                dirty_bot_ids.push_back(low_bot_id);
             }
             Destination::Output(low_output_id) => {
                 debug_println!("\tGive to output {}", low_output_id.0);
                 output_to_values
-                    .entry(&low_output_id)
+                    .entry(low_output_id)
                     .or_insert_with(Vec::new)
                     .push(low);
             }
@@ -165,15 +165,15 @@ fn find_bot_that_compares_values<'a>(
             Destination::Bot(high_bot_id) => {
                 debug_println!("\tGive to bot {}", high_bot_id.0);
                 bot_to_values
-                    .entry(&high_bot_id)
+                    .entry(high_bot_id)
                     .or_insert_with(VecDeque::new)
                     .push_back(high);
-                dirty_bot_ids.push_back(&high_bot_id);
+                dirty_bot_ids.push_back(high_bot_id);
             }
             Destination::Output(high_output_id) => {
                 debug_println!("\tGive to output {}", high_output_id.0);
                 output_to_values
-                    .entry(&high_output_id)
+                    .entry(high_output_id)
                     .or_insert_with(Vec::new)
                     .push(high);
             }
@@ -228,15 +228,15 @@ fn run_instructions(instructions: &Instructions) -> HashMap<&OutputID, Vec<&Valu
             Destination::Bot(low_bot_id) => {
                 debug_println!("\tGive to bot {}", low_bot_id.0);
                 bot_to_values
-                    .entry(&low_bot_id)
+                    .entry(low_bot_id)
                     .or_insert_with(VecDeque::new)
                     .push_back(low);
-                dirty_bot_ids.push_back(&low_bot_id);
+                dirty_bot_ids.push_back(low_bot_id);
             }
             Destination::Output(low_output_id) => {
                 debug_println!("\tGive to output {}", low_output_id.0);
                 output_to_values
-                    .entry(&low_output_id)
+                    .entry(low_output_id)
                     .or_insert_with(Vec::new)
                     .push(low);
             }
@@ -245,15 +245,15 @@ fn run_instructions(instructions: &Instructions) -> HashMap<&OutputID, Vec<&Valu
             Destination::Bot(high_bot_id) => {
                 debug_println!("\tGive to bot {}", high_bot_id.0);
                 bot_to_values
-                    .entry(&high_bot_id)
+                    .entry(high_bot_id)
                     .or_insert_with(VecDeque::new)
                     .push_back(high);
-                dirty_bot_ids.push_back(&high_bot_id);
+                dirty_bot_ids.push_back(high_bot_id);
             }
             Destination::Output(high_output_id) => {
                 debug_println!("\tGive to output {}", high_output_id.0);
                 output_to_values
-                    .entry(&high_output_id)
+                    .entry(high_output_id)
                     .or_insert_with(Vec::new)
                     .push(high);
             }
