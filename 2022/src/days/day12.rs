@@ -28,8 +28,9 @@ impl Day12 {
         best_distances[height_map.end].unwrap()
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> usize {
-        todo!()
+    fn part2(&self, example: Example, _debug: Debug) -> usize {
+        let height_map = HeightMap::parse(&self.read_file(example)).unwrap();
+        find_best_distance_reverse(&height_map).unwrap()
     }
 }
 
@@ -85,6 +86,49 @@ fn find_best_distances(height_map: &HeightMap) -> Option<Array2D<Option<usize>>>
         }
     }
     Some(best_distances)
+}
+
+fn find_best_distance_reverse(height_map: &HeightMap) -> Option<usize> {
+    let mut best_distances = Array2D::filled_with(
+        None,
+        height_map.heights.num_rows(),
+        height_map.heights.num_columns(),
+    );
+    best_distances[height_map.end] = Some(0);
+    debug_println!("best distances: {:?}", best_distances.as_rows());
+    let mut dirty_indices = VecDeque::new();
+    dirty_indices.push_back(height_map.end);
+
+    while let Some(index) = dirty_indices.pop_front() {
+        debug_println!("Processing index: {:?}", index);
+        let height = height_map.heights[index];
+        debug_println!("Height          : {:?}", height);
+        if best_distances[index].is_none() {
+            debug_println!("No best distance found for {:?}", index);
+        }
+        let distance = best_distances[index]?;
+        if height == 0 {
+            return Some(distance);
+        }
+        let next_distance = distance + 1;
+        for neighbor_index in get_neighbor_indices(&best_distances, index) {
+            debug_println!("\tProcessing neighbor: {:?}", neighbor_index);
+            let neighbor_height = height_map.heights[neighbor_index];
+            debug_println!("\tNeighbor height    : {:?}", neighbor_height);
+            if height > 0 && neighbor_height < height - 1 {
+                continue;
+            }
+            let neighbor_distance = &mut best_distances[neighbor_index];
+            match neighbor_distance {
+                Some(d) if *d <= next_distance => {}
+                _ => {
+                    *neighbor_distance = Some(next_distance);
+                    dirty_indices.push_back(neighbor_index);
+                }
+            }
+        }
+    }
+    None
 }
 
 fn get_neighbor_indices<T>(
@@ -230,10 +274,12 @@ mod test {
     }
 
     #[test]
-    fn test_examples_part2() {}
+    fn test_examples_part2() {
+        assert_eq!(29, Day12.part2(Example::Example, Debug::NotDebug));
+    }
 
     #[test]
     fn test_real_part2() {
-        // assert_eq!(0, Day12.part2(Example::Real, Debug::NotDebug));
+        assert_eq!(512, Day12.part2(Example::Real, Debug::NotDebug));
     }
 }
