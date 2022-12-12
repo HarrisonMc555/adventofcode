@@ -155,7 +155,7 @@ impl Cell {
     fn height(&self) -> u8 {
         match self {
             Cell::Start => 0,
-            Cell::End => 'z' as u8 - 'a' as u8,
+            Cell::End => b'z' - b'a',
             Cell::Normal(height) => *height,
         }
     }
@@ -207,7 +207,7 @@ impl Cell {
         Some(match c {
             'S' => Cell::Start,
             'E' => Cell::End,
-            'a'..='z' => Cell::Normal(c as u8 - 'a' as u8),
+            'a'..='z' => Cell::Normal(c as u8 - b'a'),
             _ => return None,
         })
     }
@@ -223,7 +223,7 @@ mod test {
         assert_eq!(height_map.start, (0, 0));
         assert_eq!(height_map.heights[(0, 0)], 0);
         assert_eq!(height_map.end, (2, 5));
-        assert_eq!(height_map.heights[(2, 5)], 'z' as u8 - 'a' as u8);
+        assert_eq!(height_map.heights[(2, 5)], b'z' - b'a');
         assert_eq!(height_map.heights[(0, 6)], 13);
         assert_eq!(height_map.heights[(4, 2)], 3);
     }

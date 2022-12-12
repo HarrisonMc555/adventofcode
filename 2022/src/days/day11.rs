@@ -326,8 +326,8 @@ impl Item {
                 if cur_round.is_empty() {
                     debug_println!("Cycle: {:?}", cycle);
                     let (prefix, cycle) = cycle.split_at(split_index);
-                    let prefix = cycle_to_rounds(prefix.into_iter());
-                    let cycle = cycle_to_rounds(cycle.into_iter());
+                    let prefix = cycle_to_rounds(prefix.iter());
+                    let cycle = cycle_to_rounds(cycle.iter());
                     debug_println!("Prefix: {:?}", prefix);
                     debug_println!("Cycle : {:?}", cycle);
                     return Some((prefix, cycle));
