@@ -1,6 +1,6 @@
+use crate::days::{Day, Debug, Example, Part};
 use md5::Digest;
 use std::fmt::Write;
-use crate::days::{Day, Debug, Example, Part};
 
 pub struct Day05;
 
@@ -158,7 +158,7 @@ mod test {
     #[test]
     #[ignore]
     fn test_examples_part1() {
-        assert_eq!("18f47a30", find_password("abc"));
+        assert_eq!("18f47a30", Day05.part1(Example::Example, Debug::NotDebug));
     }
 
     #[test]
@@ -170,7 +170,7 @@ mod test {
     #[test]
     #[ignore]
     fn test_examples_part2() {
-        assert_eq!("05ace8e3", find_password2("abc"));
+        assert_eq!("05ace8e3", Day05.part2(Example::Example, Debug::NotDebug));
     }
 
     #[test]
