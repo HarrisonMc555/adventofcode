@@ -1,7 +1,11 @@
 use crate::days::{Day, Debug, Example, Part};
+use crate::debug_println;
 use itertools::Itertools;
 use std::cmp::Ordering;
+use std::fmt::{Display, Formatter};
 use std::iter::Peekable;
+
+const DEBUG: bool = false;
 
 pub struct Day13;
 
@@ -30,10 +34,29 @@ impl Day13 {
             .sum()
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> usize {
-        todo!()
+    fn part2(&self, example: Example, _debug: Debug) -> usize {
+        use std::iter::once;
+        let packet_pairs = parse_packet_pairs(&self.read_file(example)).unwrap();
+        let mut packets = packet_pairs
+            .iter()
+            .flat_map(|(packet1, packet2)| once(packet1).chain(once(packet2)))
+             .collect::<Vec<_>>();
+        let divider_packet1 = create_divider_packet(DIVIDER_PACKET_NUM1);
+        let divider_packet2 = create_divider_packet(DIVIDER_PACKET_NUM2);
+        packets.push(&divider_packet1);
+        packets.push(&divider_packet2);
+        packets.sort();
+        for packet in packets.iter() {
+            debug_println!("{}", packet)
+        }
+        let index1 = index_of(&packets, &&divider_packet1).unwrap() + 1;
+        let index2 = index_of(&packets, &&divider_packet2).unwrap() + 1;
+        index1 * index2
     }
 }
+
+const DIVIDER_PACKET_NUM1: u32 = 2;
+const DIVIDER_PACKET_NUM2: u32 = 6;
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord)]
 enum Item {
@@ -45,6 +68,10 @@ enum Item {
 struct List(Vec<Item>);
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct Integer(u32);
+
+fn create_divider_packet(num: u32) -> List {
+    List(vec![Item::List(List(vec![Item::Integer(Integer(num))]))])
+}
 
 impl List {
     fn is_ordered(list1: &List, list2: &List) -> bool {
@@ -149,6 +176,41 @@ fn digits_to_int(digits: &[u32], base: u32) -> u32 {
     digits.iter().fold(0, |result, digit| result * base + digit)
 }
 
+fn index_of<T: PartialEq>(slice: &[T], element: &T) -> Option<usize> {
+    slice.iter().position(|e| e == element)
+}
+
+impl Display for Item {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Item::List(list) => list.fmt(f),
+            Item::Integer(integer) => integer.fmt(f),
+        }
+    }
+}
+
+impl Display for List {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[")?;
+        let mut first = true;
+        for item in self.0.iter() {
+            if first {
+                first = false;
+            } else {
+                write!(f, ",")?;
+            }
+            item.fmt(f)?;
+        }
+        write!(f, "]")
+    }
+}
+
+impl Display for Integer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -224,10 +286,12 @@ mod test {
     }
 
     #[test]
-    fn test_examples_part2() {}
+    fn test_examples_part2() {
+        assert_eq!(140, Day13.part2(Example::Example, Debug::NotDebug));
+    }
 
     #[test]
     fn test_real_part2() {
-        // assert_eq!(0, Day13.part2(Example::Real, Debug::NotDebug));
+        assert_eq!(19716, Day13.part2(Example::Real, Debug::NotDebug));
     }
 }
