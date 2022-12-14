@@ -40,7 +40,7 @@ impl Day13 {
         let mut packets = packet_pairs
             .iter()
             .flat_map(|(packet1, packet2)| once(packet1).chain(once(packet2)))
-             .collect::<Vec<_>>();
+            .collect::<Vec<_>>();
         let divider_packet1 = create_divider_packet(DIVIDER_PACKET_NUM1);
         let divider_packet2 = create_divider_packet(DIVIDER_PACKET_NUM2);
         packets.push(&divider_packet1);
