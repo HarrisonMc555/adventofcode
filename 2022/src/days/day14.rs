@@ -32,12 +32,16 @@ impl Day14 {
         grid.count_sand()
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> usize {
-        todo!()
+    fn part2(&self, example: Example, _debug: Debug) -> usize {
+        let lines = parse_lines(&self.read_file(example)).unwrap();
+        let mut grid = Grid::new(&lines, SAND_SOURCE).unwrap();
+        grid.simulate_falling_sand2();
+        grid.count_sand()
     }
 }
 
 const SAND_SOURCE: Point = Point { x: 500, y: 0 };
+const FLOOR_DIST_FROM_MAX_Y: Index = 2;
 
 #[derive(Debug, Eq, PartialEq)]
 struct Line(Vec<Point>);
@@ -75,6 +79,12 @@ struct Bounds {
 enum SimulationResult {
     Settled { next_starting_point: Option<Point> },
     FallIntoAbyss,
+}
+
+#[derive(Debug, Hash, Clone, Eq, PartialEq)]
+enum SimulationResult2 {
+    Settled { next_starting_point: Option<Point> },
+    BlockingSource,
 }
 
 impl Grid {
@@ -139,6 +149,23 @@ impl Grid {
         debug_println!("Further sand is falling into the abyss.");
     }
 
+    fn simulate_falling_sand2(&mut self) {
+        let mut starting_point = self.start.clone();
+        debug_println!("Simulating falling sand");
+        self.print_cells();
+        debug_println!();
+        while let SimulationResult2::Settled {
+            next_starting_point,
+        } = self.simulate_one_sand2(starting_point)
+        {
+            starting_point = next_starting_point.unwrap_or_else(|| self.start.clone());
+            debug_println!("Next starting point is {}", starting_point);
+            self.print_cells();
+            debug_println!();
+        }
+        debug_println!("Further sand is falling into the abyss.");
+    }
+
     fn simulate_one_sand(&mut self, start: Point) -> SimulationResult {
         let mut previous_point = None;
         debug_println!("Simulating one sand starting at {}", start);
@@ -150,6 +177,7 @@ impl Grid {
                 panic!();
             }
             seen.insert(cur_point.clone());
+
             debug_println!("\tCurrent point: {}", cur_point);
             let below = Point {
                 x: cur_point.x,
@@ -193,10 +221,73 @@ impl Grid {
         SimulationResult::FallIntoAbyss
     }
 
+    fn simulate_one_sand2(&mut self, start: Point) -> SimulationResult2 {
+        let mut previous_point = None;
+        debug_println!("Simulating one sand starting at {}", start);
+        let mut seen = HashSet::new();
+        let mut cur_point = start;
+        loop {
+            if seen.contains(&cur_point) {
+                debug_println!("Already seen {}", cur_point);
+                panic!();
+            }
+            seen.insert(cur_point.clone());
+
+            debug_println!("\tCurrent point: {}", cur_point);
+            let below = Point {
+                x: cur_point.x,
+                y: cur_point.y + 1,
+            };
+            if !self.is_solid(&below) {
+                debug_println!("\t\tBelow is empty");
+                previous_point = Some(cur_point);
+                cur_point = below;
+                continue;
+            }
+
+            let below_left = Point {
+                x: cur_point.x - 1,
+                y: cur_point.y + 1,
+            };
+            if !self.is_solid(&below_left) {
+                debug_println!("\t\tBelow left is empty");
+                previous_point = Some(cur_point);
+                cur_point = below_left;
+                continue;
+            }
+
+            let below_right = Point {
+                x: cur_point.x + 1,
+                y: cur_point.y + 1,
+            };
+            if !self.is_solid(&below_right) {
+                debug_println!("\t\tBelow right is empty");
+                previous_point = Some(cur_point);
+                cur_point = below_right;
+                continue;
+            }
+
+            debug_println!("\t\tAll are solid, settling at {}", cur_point);
+            let result = if cur_point == self.start {
+                SimulationResult2::BlockingSource
+            } else {
+                SimulationResult2::Settled {
+                    next_starting_point: previous_point,
+                }
+            };
+            self.cells.insert(cur_point, Cell::Sand);
+            return result;
+        }
+    }
+
     fn falling_into_abyss(&self, point: &Point) -> bool {
         !(self.bounds.min_x <= point.x
             && point.x <= self.bounds.max_x
             && point.y <= self.bounds.max_y)
+    }
+
+    fn is_solid(&self, point: &Point) -> bool {
+        self.cells.contains_key(point) || point.y == self.bounds.max_y + FLOOR_DIST_FROM_MAX_Y
     }
 
     fn print_cells(&self) {
@@ -342,11 +433,13 @@ mod test {
 
     #[test]
     fn test_real_part1() {
-        // assert_eq!(0, Day14.part1(Example::Real, Debug::NotDebug));
+        assert_eq!(737, Day14.part1(Example::Real, Debug::NotDebug));
     }
 
     #[test]
-    fn test_examples_part2() {}
+    fn test_examples_part2() {
+        assert_eq!(93, Day14.part2(Example::Example, Debug::NotDebug));
+    }
 
     #[test]
     fn test_real_part2() {
