@@ -8,6 +8,11 @@ use crate::{debug_print, debug_println};
 
 const DEBUG: bool = false;
 
+// This is somewhat slow because every time the "starting point" returned from "simulate_one_sand" is occupied (which
+// happens frequently), we have to start all the way back at the original source. If we instead returned the path the
+// sand took (i.e. a vector of points), then we could simply pop the last point off until we find an unoccupied one
+// and start from there.
+
 pub struct Day14;
 
 impl Day for Day14 {
@@ -141,8 +146,9 @@ impl Grid {
             next_starting_point,
         } = self.simulate_one_sand(starting_point)
         {
+            debug_println!("Next starting point is {:?}", next_starting_point);
             starting_point = next_starting_point.unwrap_or_else(|| self.start.clone());
-            debug_println!("Next starting point is {}", starting_point);
+            debug_println!("Next starting point is now {}", starting_point);
             self.print_cells();
             debug_println!();
         }
@@ -158,6 +164,7 @@ impl Grid {
             next_starting_point,
         } = self.simulate_one_sand2(starting_point)
         {
+            debug_println!("Next starting point: {:?}", next_starting_point);
             starting_point = next_starting_point.unwrap_or_else(|| self.start.clone());
             debug_println!("Next starting point is {}", starting_point);
             self.print_cells();
