@@ -2,16 +2,9 @@ use crate::days::{Day, Debug, Example, Part};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
+use crate::debug_println;
 
 const DEBUG: bool = false;
-#[macro_export]
-macro_rules! debug_println {
-    ($($tts:tt)*) => {
-        if (DEBUG) {
-            println!($($tts)*);
-        }
-    }
-}
 
 pub struct Day09;
 

@@ -98,3 +98,21 @@ impl From<bool> for Debug {
         }
     }
 }
+
+#[macro_export]
+macro_rules! debug_println {
+    ($($tts:tt)*) => {
+        if (DEBUG) {
+            println!($($tts)*);
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! debug_print {
+    ($($tts:tt)*) => {
+        if (DEBUG) {
+            print!($($tts)*);
+        }
+    }
+}
