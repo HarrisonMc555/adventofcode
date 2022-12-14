@@ -15,6 +15,7 @@ pub mod day10;
 pub mod day11;
 pub mod day12;
 pub mod day13;
+pub mod day14;
 
 pub use day01::Day01;
 pub use day02::Day02;
@@ -29,6 +30,7 @@ pub use day10::Day10;
 pub use day11::Day11;
 pub use day12::Day12;
 pub use day13::Day13;
+pub use day14::Day14;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Part {
