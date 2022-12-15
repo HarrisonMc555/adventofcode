@@ -1,3 +1,4 @@
+use std::cmp;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Display, Formatter};
 
@@ -8,10 +9,7 @@ use crate::{debug_print, debug_println};
 
 const DEBUG: bool = false;
 
-// This is somewhat slow because every time the "starting point" returned from "simulate_one_sand" is occupied (which
-// happens frequently), we have to start all the way back at the original source. If we instead returned the path the
-// sand took (i.e. a vector of points), then we could simply pop the last point off until we find an unoccupied one
-// and start from there.
+// This would probably be much faster if we used an array instead of a hash map.
 
 pub struct Day14;
 
@@ -32,15 +30,15 @@ impl Day for Day14 {
 impl Day14 {
     fn part1(&self, example: Example, _debug: Debug) -> usize {
         let lines = parse_lines(&self.read_file(example)).unwrap();
-        let mut grid = Grid::new(&lines, SAND_SOURCE).unwrap();
-        grid.simulate_falling_sand();
+        let mut grid = Grid::new(&lines, LowerExistence::Abyss).unwrap();
+        grid.simulate_falling_sand(SAND_SOURCE);
         grid.count_sand()
     }
 
     fn part2(&self, example: Example, _debug: Debug) -> usize {
         let lines = parse_lines(&self.read_file(example)).unwrap();
-        let mut grid = Grid::new(&lines, SAND_SOURCE).unwrap();
-        grid.simulate_falling_sand2();
+        let mut grid = Grid::new(&lines, LowerExistence::Floor).unwrap();
+        grid.simulate_falling_sand(SAND_SOURCE);
         grid.count_sand()
     }
 }
@@ -68,8 +66,8 @@ enum Cell {
 #[derive(Debug, Eq, PartialEq)]
 struct Grid {
     cells: HashMap<Point, Cell>,
-    start: Point,
     bounds: Bounds,
+    lower_existence: LowerExistence,
 }
 
 #[derive(Debug, Hash, Clone, Eq, PartialEq)]
@@ -82,8 +80,15 @@ struct Bounds {
 
 #[derive(Debug, Hash, Clone, Eq, PartialEq)]
 enum SimulationResult {
-    Settled { next_starting_point: Option<Point> },
+    Settled,
     FallIntoAbyss,
+    BlockingSource,
+}
+
+#[derive(Debug, Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+enum LowerExistence {
+    Abyss,
+    Floor,
 }
 
 #[derive(Debug, Hash, Clone, Eq, PartialEq)]
@@ -93,7 +98,7 @@ enum SimulationResult2 {
 }
 
 impl Grid {
-    fn new(lines: &[Line], start: Point) -> Option<Self> {
+    fn new(lines: &[Line], lower_existence: LowerExistence) -> Option<Self> {
         let Some(first) = lines.first().and_then(|line| line.0.first()) else {
             return None;
         };
@@ -105,12 +110,7 @@ impl Grid {
             }
         }
 
-        let edge_points = || {
-            lines
-                .iter()
-                .flat_map(|line| line.0.iter())
-                .chain(std::iter::once(&start))
-        };
+        let edge_points = || lines.iter().flat_map(|line| line.0.iter());
         let min_x = edge_points().map(|point| point.x).min().unwrap_or(first.x);
         let max_x = edge_points().map(|point| point.x).max().unwrap_or(first.x);
         let min_y = edge_points().map(|point| point.y).min().unwrap_or(first.y);
@@ -125,8 +125,8 @@ impl Grid {
 
         Some(Grid {
             cells,
-            start,
             bounds,
+            lower_existence,
         })
     }
 
@@ -137,108 +137,61 @@ impl Grid {
             .count()
     }
 
-    fn simulate_falling_sand(&mut self) {
-        let mut starting_point = self.start.clone();
+    fn simulate_falling_sand(&mut self, start: Point) {
         debug_println!("Simulating falling sand");
-        self.print_cells();
+        self.print_cells(&start);
         debug_println!();
-        while let SimulationResult::Settled {
-            next_starting_point,
-        } = self.simulate_one_sand(starting_point)
-        {
-            debug_println!("Next starting point is {:?}", next_starting_point);
-            starting_point = next_starting_point.unwrap_or_else(|| self.start.clone());
-            debug_println!("Next starting point is now {}", starting_point);
-            self.print_cells();
-            debug_println!();
+        let mut path = vec![start.clone()];
+        loop {
+            match self.simulate_one_sand(&mut path) {
+                SimulationResult::Settled => {
+                    self.print_cells(&start);
+                    debug_println!();
+                }
+                SimulationResult::FallIntoAbyss => {
+                    if self.lower_existence == LowerExistence::Floor {
+                        panic!("Should not fall into abyss if there is an infinite floor");
+                    } else {
+                        debug_println!("Further sand is falling into the abyss.");
+                        break;
+                    }
+                }
+                SimulationResult::BlockingSource => {
+                    debug_println!("Sand is now blocking the source");
+                    break;
+                }
+            }
         }
-        debug_println!("Further sand is falling into the abyss.");
+        self.print_cells_with_path(&start, path.iter());
     }
 
-    fn simulate_falling_sand2(&mut self) {
-        let mut starting_point = self.start.clone();
-        debug_println!("Simulating falling sand");
-        self.print_cells();
-        debug_println!();
-        while let SimulationResult2::Settled {
-            next_starting_point,
-        } = self.simulate_one_sand2(starting_point)
-        {
-            debug_println!("Next starting point: {:?}", next_starting_point);
-            starting_point = next_starting_point.unwrap_or_else(|| self.start.clone());
-            debug_println!("Next starting point is {}", starting_point);
-            self.print_cells();
-            debug_println!();
-        }
-        debug_println!("Further sand is falling into the abyss.");
-    }
-
-    fn simulate_one_sand(&mut self, start: Point) -> SimulationResult {
-        let mut previous_point = None;
-        debug_println!("Simulating one sand starting at {}", start);
+    fn simulate_one_sand(&mut self, path: &mut Vec<Point>) -> SimulationResult {
         let mut seen = HashSet::new();
-        let mut cur_point = start;
-        while !self.falling_into_abyss(&cur_point) {
-            if seen.contains(&cur_point) {
-                debug_println!("Already seen {}", cur_point);
-                panic!();
-            }
-            seen.insert(cur_point.clone());
-
-            debug_println!("\tCurrent point: {}", cur_point);
-            let below = Point {
-                x: cur_point.x,
-                y: cur_point.y + 1,
+        debug_println!("= Simulating one sand, path has {} points =", path.len());
+        let mut cur_point = loop {
+            let Some(point) = path.pop() else {
+                debug_println!("Path is now empty, sand must be blocking the source");
+                return SimulationResult::BlockingSource;
             };
-            if !self.cells.contains_key(&below) {
-                debug_println!("\t\tBelow is empty");
-                previous_point = Some(cur_point);
-                cur_point = below;
+            if self.is_solid(&point) {
+                debug_println!("Path point {} is now solid, skipping", point);
                 continue;
             }
-
-            let below_left = Point {
-                x: cur_point.x - 1,
-                y: cur_point.y + 1,
-            };
-            if !self.cells.contains_key(&below_left) {
-                debug_println!("\t\tBelow left is empty");
-                previous_point = Some(cur_point);
-                cur_point = below_left;
-                continue;
-            }
-
-            let below_right = Point {
-                x: cur_point.x + 1,
-                y: cur_point.y + 1,
-            };
-            if !self.cells.contains_key(&below_right) {
-                debug_println!("\t\tBelow right is empty");
-                previous_point = Some(cur_point);
-                cur_point = below_right;
-                continue;
-            }
-
-            debug_println!("\t\tAll are solid, settling at {}", cur_point);
-            self.cells.insert(cur_point, Cell::Sand);
-            return SimulationResult::Settled {
-                next_starting_point: previous_point,
-            };
-        }
-        SimulationResult::FallIntoAbyss
-    }
-
-    fn simulate_one_sand2(&mut self, start: Point) -> SimulationResult2 {
-        let mut previous_point = None;
-        debug_println!("Simulating one sand starting at {}", start);
-        let mut seen = HashSet::new();
-        let mut cur_point = start;
+            debug_println!("Path point {} is empty, using it as starting point", point);
+            break point;
+        };
+        debug_println!("Simulating one sand starting at point {:?}", cur_point);
         loop {
             if seen.contains(&cur_point) {
-                debug_println!("Already seen {}", cur_point);
-                panic!();
+                panic!("Already seen {}, this is likely an infinte loop", cur_point);
             }
             seen.insert(cur_point.clone());
+
+            if self.lower_existence == LowerExistence::Abyss && self.falling_into_abyss(&cur_point)
+            {
+                debug_println!("We are now falling into the abyss");
+                return SimulationResult::FallIntoAbyss;
+            }
 
             debug_println!("\tCurrent point: {}", cur_point);
             let below = Point {
@@ -247,7 +200,7 @@ impl Grid {
             };
             if !self.is_solid(&below) {
                 debug_println!("\t\tBelow is empty");
-                previous_point = Some(cur_point);
+                path.push(cur_point);
                 cur_point = below;
                 continue;
             }
@@ -258,7 +211,7 @@ impl Grid {
             };
             if !self.is_solid(&below_left) {
                 debug_println!("\t\tBelow left is empty");
-                previous_point = Some(cur_point);
+                path.push(cur_point);
                 cur_point = below_left;
                 continue;
             }
@@ -269,21 +222,14 @@ impl Grid {
             };
             if !self.is_solid(&below_right) {
                 debug_println!("\t\tBelow right is empty");
-                previous_point = Some(cur_point);
+                path.push(cur_point);
                 cur_point = below_right;
                 continue;
             }
 
             debug_println!("\t\tAll are solid, settling at {}", cur_point);
-            let result = if cur_point == self.start {
-                SimulationResult2::BlockingSource
-            } else {
-                SimulationResult2::Settled {
-                    next_starting_point: previous_point,
-                }
-            };
             self.cells.insert(cur_point, Cell::Sand);
-            return result;
+            return SimulationResult::Settled;
         }
     }
 
@@ -294,21 +240,30 @@ impl Grid {
     }
 
     fn is_solid(&self, point: &Point) -> bool {
-        self.cells.contains_key(point) || point.y == self.bounds.max_y + FLOOR_DIST_FROM_MAX_Y
+        self.cells.contains_key(point)
+            || (self.lower_existence == LowerExistence::Floor
+                && point.y == self.bounds.max_y + FLOOR_DIST_FROM_MAX_Y)
     }
 
-    fn print_cells(&self) {
-        for y in self.bounds.min_y..=self.bounds.max_y {
-            for x in self.bounds.min_x..=self.bounds.max_x {
+    fn print_cells(&self, start: &Point) {
+        self.print_cells_with_path(start, std::iter::empty());
+    }
+
+    fn print_cells_with_path<'a, T: Iterator<Item = &'a Point>>(&self, start: &Point, path: T) {
+        let path_points = path.collect::<HashSet<_>>();
+        let min_x = cmp::min(self.bounds.min_x, start.x);
+        let max_x = cmp::max(self.bounds.max_x, start.x);
+        let min_y = cmp::min(self.bounds.min_y, start.y);
+        let max_y = cmp::max(self.bounds.max_y, start.y);
+        for y in min_y..=max_y {
+            for x in min_x..=max_x {
                 let point = Point { x, y };
-                let c = if point == self.start {
-                    '+'
-                } else {
-                    match self.cells.get(&point) {
-                        None => '.',
-                        Some(Cell::Rock) => '#',
-                        Some(Cell::Sand) => 'o',
-                    }
+                let c = match self.cells.get(&point) {
+                    _ if point == *start => '+',
+                    _ if path_points.contains(&point) => '~',
+                    None => '.',
+                    Some(Cell::Rock) => '#',
+                    Some(Cell::Sand) => 'o',
                 };
                 debug_print!("{}", c);
             }
