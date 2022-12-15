@@ -1,7 +1,6 @@
-use crate::days::{Day, Debug, Example, Part};
-use lazy_static::lazy_static;
-use regex::Regex;
 use std::collections::{HashMap, HashSet};
+
+use crate::days::{Day, Debug, Example, Part};
 use crate::debug_println;
 
 const DEBUG: bool = false;
@@ -276,9 +275,6 @@ impl Command {
     }
 
     fn parse(text: &str) -> Option<Self> {
-        lazy_static! {
-            static ref RE: Regex = Regex::new(r"^([URDL]) (\d+)").unwrap();
-        }
         let mut iter = text.split_whitespace();
         let direction = iter.next()?;
         let amount = iter.next()?;
