@@ -31,7 +31,9 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_examples_part1() {}
+    fn test_examples_part1() {
+        // assert_eq!(0, Day999.part1(Example::Example, Debug::NotDebug));
+    }
 
     #[test]
     fn test_real_part1() {
@@ -39,7 +41,9 @@ mod test {
     }
 
     #[test]
-    fn test_examples_part2() {}
+    fn test_examples_part2() {
+        // assert_eq!(0, Day999.part2(Example::Example, Debug::NotDebug));
+    }
 
     #[test]
     fn test_real_part2() {
