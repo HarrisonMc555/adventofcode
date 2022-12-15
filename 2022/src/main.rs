@@ -1,11 +1,10 @@
 extern crate core;
 
-mod days;
-
-use std::ops::Not;
-
 use clap::Parser;
+
 use days::*;
+
+mod days;
 
 const DEFAULT_DAY: u32 = 15;
 
@@ -34,11 +33,11 @@ fn main() {
         eprintln!("Invalid day: {}", args.day);
         return;
     };
-    day.run(
-        args.part2.not().into(),
-        args.example.into(),
-        args.debug.into(),
-    );
+    let part2 = match args.part2 {
+        true => Part::Part2,
+        false => Part::Part1,
+    };
+    day.run(part2, args.example.into(), args.debug.into());
 }
 
 fn get_day(day_num: u32) -> Option<Box<dyn Day>> {

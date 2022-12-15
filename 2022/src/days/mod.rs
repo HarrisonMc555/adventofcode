@@ -2,22 +2,6 @@
 
 use std::fs;
 
-pub mod day01;
-pub mod day02;
-pub mod day03;
-pub mod day04;
-pub mod day05;
-pub mod day06;
-pub mod day07;
-pub mod day08;
-pub mod day09;
-pub mod day10;
-pub mod day11;
-pub mod day12;
-pub mod day13;
-pub mod day14;
-pub mod day15;
-
 pub use day01::Day01;
 pub use day02::Day02;
 pub use day03::Day03;
@@ -33,6 +17,22 @@ pub use day12::Day12;
 pub use day13::Day13;
 pub use day14::Day14;
 pub use day15::Day15;
+
+pub mod day01;
+pub mod day02;
+pub mod day03;
+pub mod day04;
+pub mod day05;
+pub mod day06;
+pub mod day07;
+pub mod day08;
+pub mod day09;
+pub mod day10;
+pub mod day11;
+pub mod day12;
+pub mod day13;
+pub mod day14;
+pub mod day15;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Part {
@@ -70,16 +70,6 @@ pub trait Day {
             .lines()
             .map(str::to_owned)
             .collect()
-    }
-}
-
-impl From<bool> for Part {
-    fn from(is_part1: bool) -> Self {
-        if is_part1 {
-            Self::Part1
-        } else {
-            Self::Part2
-        }
     }
 }
 
