@@ -1,9 +1,11 @@
-use crate::days::{Day, Debug, Example, Part};
-use crate::debug_println;
-use itertools::Itertools;
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::iter::Peekable;
+
+use itertools::Itertools;
+
+use crate::days::{Day, Debug, Example, Part};
+use crate::debug_println;
 
 const DEBUG: bool = false;
 
@@ -58,13 +60,13 @@ impl Day13 {
 const DIVIDER_PACKET_NUM1: u32 = 2;
 const DIVIDER_PACKET_NUM2: u32 = 6;
 
-#[derive(Debug, Clone, Eq, PartialEq, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 enum Item {
     List(List),
     Integer(Integer),
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 struct List(Vec<Item>);
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct Integer(u32);
@@ -81,28 +83,40 @@ impl List {
 
 impl PartialOrd for Item {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Item {
+    fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
-            (Item::Integer(integer1), Item::Integer(integer2)) => integer1.partial_cmp(integer2),
-            (Item::Integer(_), Item::List(list2)) => List(vec![self.clone()]).partial_cmp(list2),
-            (Item::List(list1), Item::Integer(_)) => list1.partial_cmp(&List(vec![other.clone()])),
-            (Item::List(list1), Item::List(list2)) => list1.partial_cmp(list2),
+            (Item::Integer(integer1), Item::Integer(integer2)) => integer1.cmp(integer2),
+            (Item::Integer(_), Item::List(list2)) => List(vec![self.clone()]).cmp(list2),
+            (Item::List(list1), Item::Integer(_)) => list1.cmp(&List(vec![other.clone()])),
+            (Item::List(list1), Item::List(list2)) => list1.cmp(list2),
         }
     }
 }
 
 impl PartialOrd for List {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for List {
+    fn cmp(&self, other: &Self) -> Ordering {
         let mut iter1 = self.0.iter();
         let mut iter2 = other.0.iter();
         loop {
             match (iter1.next(), iter2.next()) {
-                (None, None) => return Some(Ordering::Equal),
-                (None, Some(_)) => return Some(Ordering::Less),
-                (Some(_), None) => return Some(Ordering::Greater),
+                (None, None) => return Ordering::Equal,
+                (None, Some(_)) => return Ordering::Less,
+                (Some(_), None) => return Ordering::Greater,
                 (Some(item1), Some(item2)) => {
-                    let cmp = item1.partial_cmp(item2)?;
-                    if cmp != Ordering::Equal {
-                        return Some(cmp);
+                    let result = item1.cmp(item2);
+                    if result != Ordering::Equal {
+                        return result;
                     }
                 }
             }
@@ -143,10 +157,8 @@ impl List {
             while *chars.peek()? != ']' {
                 if first {
                     first = false
-                } else {
-                    if chars.next()? != ',' {
-                        return None;
-                    }
+                } else if chars.next()? != ',' {
+                    return None;
                 }
                 items.push(parse_item(chars)?);
             }
