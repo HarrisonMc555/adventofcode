@@ -27,17 +27,26 @@ impl Day for Day15 {
 impl Day15 {
     fn part1(&self, example: Example, _debug: Debug) -> usize {
         let sensors = parse_sensors(&self.read_file(example)).unwrap();
-        count_eliminated_positions_in_row(&sensors, ROW)
+        let row = match example {
+            Example::Real => ROW,
+            Example::Example => ROW_EXAMPLE,
+        };
+        count_eliminated_positions_in_row(&sensors, row)
     }
 
     fn part2(&self, example: Example, _debug: Debug) -> usize {
         let sensors = parse_sensors(&self.read_file(example)).unwrap();
-        let beacon = find_beacon_position(&sensors, RANGE_X, RANGE_Y).unwrap();
+        let (range_x, range_y) = match example {
+            Example::Real => (RANGE_X, RANGE_Y),
+            Example::Example => (RANGE_X_EXAMPLE, RANGE_Y_EXAMPLE),
+        };
+        let beacon = find_beacon_position(&sensors, range_x, range_y).unwrap();
         get_tuning_frequency(&beacon) as usize
     }
 }
 
 const ROW: isize = 2000000;
+const ROW_EXAMPLE: isize = 10;
 
 const MIN_X: isize = 0;
 const MAX_X: isize = 4000000;
@@ -46,12 +55,18 @@ const MIN_Y: isize = 0;
 const MAX_Y: isize = 4000000;
 const RANGE_Y: Range = Range::new(MIN_Y, MAX_Y);
 
+const MAX_X_EXAMPLE: isize = 20;
+const RANGE_X_EXAMPLE: Range = Range::new(MIN_X, MAX_X_EXAMPLE);
+const MAX_Y_EXAMPLE: isize = 20;
+const RANGE_Y_EXAMPLE: Range = Range::new(MIN_Y, MAX_Y_EXAMPLE);
+
 const FREQUENCY_MULTIPLIER: isize = 4000000;
 
 #[derive(Debug, Hash, Clone, Eq, PartialEq)]
 struct Sensor {
     position: Position,
     closest_beacon: Position,
+    distance_to_beacon: isize,
 }
 
 #[derive(Debug, Hash, Clone, Eq, PartialEq)]
@@ -242,10 +257,18 @@ fn get_tuning_frequency(position: &Position) -> isize {
 // }
 
 impl Sensor {
+    fn new(position: Position, closest_beacon: Position) -> Self {
+        let distance_to_beacon = position.distance_to(&closest_beacon);
+        Sensor {
+            position,
+            closest_beacon,
+            distance_to_beacon,
+        }
+    }
+
     fn get_eliminated_range_from_row(&self, row: isize) -> Option<Range> {
-        let distance_to_beacon = self.calc_distance_to_beacon();
         let distance_to_row = (self.position.y - row).abs();
-        let radius = distance_to_beacon - distance_to_row;
+        let radius = self.distance_to_beacon - distance_to_row;
         if radius < 0 {
             return None;
         }
@@ -255,9 +278,8 @@ impl Sensor {
         Some(Range::new(min_x, max_x))
     }
 
-    fn calc_distance_to_beacon(&self) -> isize {
-        (self.closest_beacon.x - self.position.x).abs()
-            + (self.closest_beacon.y - self.position.y).abs()
+    fn is_eliminated(&self, position: &Position) -> bool {
+        self.position.distance_to(position) <= self.distance_to_beacon
     }
 }
 
@@ -324,6 +346,13 @@ impl IntoIterator for &Range {
     }
 }
 
+impl Position {
+    fn distance_to(&self, other: &Position) -> isize {
+        (other.x - self.x).abs() + (other.y - self.y).abs()
+
+    }
+}
+
 fn parse_sensors(text: &str) -> Option<Vec<Sensor>> {
     text.trim().split('\n').map(Sensor::parse).collect()
 }
@@ -353,10 +382,7 @@ impl Sensor {
             y: beacon_y,
         };
 
-        Some(Sensor {
-            position,
-            closest_beacon,
-        })
+        Some(Sensor::new(position, closest_beacon))
     }
 }
 
@@ -457,8 +483,7 @@ mod test {
 
     #[test]
     fn test_examples_part1() {
-        let sensors = parse_sensors(include_str!("../../static/example15.txt")).unwrap();
-        assert_eq!(26, count_eliminated_positions_in_row(&sensors, 10));
+        assert_eq!(26, Day15.part1(Example::Example, Debug::NotDebug));
     }
 
     #[test]
@@ -468,9 +493,7 @@ mod test {
 
     #[test]
     fn test_examples_part2() {
-        let sensors = parse_sensors(include_str!("../../static/example15.txt")).unwrap();
-        let beacon = find_beacon_position(&sensors, Range::new(0, 20), Range::new(0, 20)).unwrap();
-        assert_eq!(56000011, get_tuning_frequency(&beacon));
+        assert_eq!(56000011, Day15.part2(Example::Example, Debug::NotDebug));
     }
 
     #[test]
@@ -479,16 +502,16 @@ mod test {
     }
 
     fn s(sensor_x: isize, sensor_y: isize, beacon_x: isize, beacon_y: isize) -> Sensor {
-        Sensor {
-            position: Position {
+        Sensor::new(
+            Position {
                 x: sensor_x,
                 y: sensor_y,
             },
-            closest_beacon: Position {
+            Position {
                 x: beacon_x,
                 y: beacon_y,
             },
-        }
+        )
     }
 
     fn r(start: isize, end: isize) -> Range {
