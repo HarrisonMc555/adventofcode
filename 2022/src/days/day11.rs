@@ -1,8 +1,10 @@
-use crate::days::{Day, Debug, Example, Part};
-use crate::debug_println;
+use std::collections::{HashSet, VecDeque};
+
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::collections::{HashSet, VecDeque};
+
+use crate::days::{Day, Debug, Example, Part};
+use crate::debug_println;
 
 pub struct Day11;
 
@@ -68,6 +70,7 @@ enum Amount {
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 struct MonkeyID(usize);
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct Item {
     id: String,

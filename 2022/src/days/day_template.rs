@@ -31,8 +31,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_examples_part1() {
-    }
+    fn test_examples_part1() {}
 
     #[test]
     fn test_real_part1() {
@@ -40,8 +39,7 @@ mod test {
     }
 
     #[test]
-    fn test_examples_part2() {
-    }
+    fn test_examples_part2() {}
 
     #[test]
     fn test_real_part2() {

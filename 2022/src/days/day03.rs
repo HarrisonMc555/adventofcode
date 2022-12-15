@@ -1,5 +1,6 @@
-use crate::days::{Day, Debug, Example, Part};
 use std::collections::HashSet;
+
+use crate::days::{Day, Debug, Example, Part};
 
 pub struct Day03;
 

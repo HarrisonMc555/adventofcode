@@ -97,6 +97,7 @@ fn count_tail_positions(commands: &[Command]) -> usize {
 }
 
 const NUM_KNOTS: usize = 10;
+
 fn count_tail_positions2(commands: &[Command]) -> usize {
     let mut state = State2::new(NUM_KNOTS);
     let mut tail_positions = HashSet::new();

@@ -276,7 +276,7 @@ mod test {
             filetree.files,
             vec![
                 File::new(14848514, "b.txt".to_string()),
-                File::new(8504156, "c.dat".to_string())
+                File::new(8504156, "c.dat".to_string()),
             ]
         );
         assert_eq!(filetree.subdirectories.len(), 2);

@@ -1,6 +1,7 @@
+use array2d::Array2D;
+
 use crate::days::{Day, Debug, Example, Part};
 use crate::debug_println;
-use array2d::Array2D;
 
 pub struct Day10;
 
@@ -71,6 +72,7 @@ fn calc_signal_strength(register_history: &[i32], special_cycles: &[usize]) -> i
 
 const SCREEN_WIDTH: usize = 40;
 const SCREEN_HEIGHT: usize = 6;
+
 fn draw_screen(instructions: &[Instruction]) -> Array2D<Cell> {
     let register_history = run_instructions(instructions);
     let mut screen = Array2D::filled_with(Cell::Off, SCREEN_HEIGHT, SCREEN_WIDTH);

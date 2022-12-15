@@ -68,6 +68,7 @@ enum Item {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct List(Vec<Item>);
+
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct Integer(u32);
 

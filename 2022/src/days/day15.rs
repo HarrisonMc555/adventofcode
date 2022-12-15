@@ -349,7 +349,6 @@ impl IntoIterator for &Range {
 impl Position {
     fn distance_to(&self, other: &Position) -> isize {
         (other.x - self.x).abs() + (other.y - self.y).abs()
-
     }
 }
 

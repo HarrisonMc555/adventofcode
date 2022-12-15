@@ -1,7 +1,9 @@
+use std::collections::VecDeque;
+
+use array2d::Array2D;
+
 use crate::days::{Day, Debug, Example, Part};
 use crate::debug_println;
-use array2d::Array2D;
-use std::collections::VecDeque;
 
 const DEBUG: bool = false;
 

@@ -1,5 +1,6 @@
-use crate::days::{Day, Debug, Example, Part};
 use array2d::Array2D;
+
+use crate::days::{Day, Debug, Example, Part};
 
 pub struct Day08;
 
