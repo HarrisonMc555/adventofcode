@@ -1,10 +1,12 @@
+use std::ops::RangeInclusive;
+
 use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::days::{Day, Debug, Example, Part};
 use crate::debug_println;
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 
 pub struct Day15;
 
@@ -28,21 +30,32 @@ impl Day15 {
         count_eliminated_positions_in_row(&sensors, ROW)
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> usize {
-        todo!()
+    fn part2(&self, example: Example, _debug: Debug) -> usize {
+        let sensors = parse_sensors(&self.read_file(example)).unwrap();
+        let beacon = find_beacon_position(&sensors, RANGE_X, RANGE_Y).unwrap();
+        get_tuning_frequency(&beacon) as usize
     }
 }
 
 const ROW: isize = 2000000;
 
+const MIN_X: isize = 0;
+const MAX_X: isize = 4000000;
+const RANGE_X: Range = Range::new(MIN_X, MAX_X);
+const MIN_Y: isize = 0;
+const MAX_Y: isize = 4000000;
+const RANGE_Y: Range = Range::new(MIN_Y, MAX_Y);
+
+const FREQUENCY_MULTIPLIER: isize = 4000000;
+
 #[derive(Debug, Hash, Clone, Eq, PartialEq)]
 struct Sensor {
-    position: Point,
-    closest_beacon: Point,
+    position: Position,
+    closest_beacon: Position,
 }
 
 #[derive(Debug, Hash, Clone, Eq, PartialEq)]
-struct Point {
+struct Position {
     x: isize,
     y: isize,
 }
@@ -87,7 +100,10 @@ fn count_eliminated_positions_in_row(sensors: &[Sensor], row: isize) -> usize {
         .collect();
     debug_println!("Beacon columns in row {}: {:?}", row, beacon_columns);
     let num_beacons_in_ranges = count_values_in_ranges(beacon_columns, eliminated_ranges);
-    debug_println!("Number of beacons in eliminated ranges: {}", num_beacons_in_ranges);
+    debug_println!(
+        "Number of beacons in eliminated ranges: {}",
+        num_beacons_in_ranges
+    );
     total_eliminated_positions.saturating_sub(num_beacons_in_ranges)
 }
 
@@ -128,6 +144,102 @@ fn count_values_in_ranges(mut values: Vec<isize>, mut sorted_merged_ranges: Vec<
     }
     num_values_in_ranges
 }
+
+fn find_beacon_position(sensors: &[Sensor], range_x: Range, range_y: Range) -> Option<Position> {
+    debug_println!(
+        "Finding beacon position for x: {}..={}, y:{}..={}",
+        range_x.start,
+        range_x.end,
+        range_y.start,
+        range_y.end
+    );
+    for y in &range_y {
+        debug_println!("Trying y = {}", y);
+        let eliminated_ranges = sensors
+            .iter()
+            .filter_map(|sensor| sensor.get_eliminated_range_from_row(y))
+            .collect::<Vec<_>>();
+        let eliminated_ranges = merge_ranges(eliminated_ranges);
+        debug_println!("\tEliminated ranges: {:?}", eliminated_ranges);
+        let first = eliminated_ranges.first()?;
+        debug_println!("\tFirst range: {}..={}", first.start, first.end);
+        if first.start > range_x.start {
+            debug_println!(
+                "\tFirst range is {}..={}, which does not cover : {}..={}",
+                first.start,
+                first.end,
+                range_x.start,
+                range_x.end
+            );
+            return Some(Position {
+                x: range_x.start,
+                y,
+            });
+        }
+        let last = eliminated_ranges.last()?;
+        if last.end < range_x.end {
+            debug_println!(
+                "\tLast range is {}..={}, which does not cover : {}..={}",
+                last.start,
+                last.end,
+                range_x.start,
+                range_x.end
+            );
+            return Some(Position { x: range_x.end, y });
+        }
+        if let [eliminated_range1, _, ..] = eliminated_ranges.as_slice() {
+            debug_println!("\tThere are multiple ranges: {:?}", eliminated_ranges);
+            return Some(Position {
+                x: eliminated_range1.end + 1,
+                y,
+            });
+        };
+    }
+    None
+}
+
+fn get_tuning_frequency(position: &Position) -> isize {
+    position.x * FREQUENCY_MULTIPLIER + position.y
+}
+
+// fn find_beacon_positions(sensors: &[Sensor], range_x: Range, range_y: Range) -> Vec<Position> {
+//     let mut possible_beacon_positions = Vec::new();
+//     for y in range_y {
+//         let eliminated_ranges = sensors
+//             .iter()
+//             .filter_map(|sensor| sensor.get_eliminated_range_from_row(y))
+//             .collect::<Vec<_>>();
+//         let non_eliminated_positions =
+//             find_non_eliminated_ranges(&eliminated_ranges, &range_x).map(|x| Position::new(x, y));
+//         possible_beacon_positions.extend(non_eliminated_positions);
+//     }
+//     possible_beacon_positions
+// }
+
+// fn find_non_eliminated_ranges(eliminated_ranges: &[Range], target_range: &Range) -> Vec<Range> {
+//     let Some((first_range, rest)) = eliminated_ranges.split_first() else {
+//         return vec![target_range.clone()];
+//     };
+//     let mut non_eliminated_values = Vec::new();
+//     if target_range.start < first_range.start {
+//         non_eliminated_values.push(Range::new(target_range.start, first_range.start - 1));
+//     }
+//     let Some((last_range, rest)) = rest.split_last() else {
+//         return non_eliminated_values;
+//     };
+//
+//     for (previous_range, next_range) in eliminated_ranges.iter().tuple_windows() {
+//         if target_range.overlaps(&previous_range) {
+//             let start = self.start.min(other_range.start);
+//             let end = self.end.max(other_range.end);
+//             RangeMergeResult::Merged(Range::new(start, end))
+//         }
+//         if target_range.start <= previous_range
+//         non_eliminated_values.push(Range::new(previous_range.end + 1, next_range.end - 1));
+//     }
+//     if target_range
+//     todo!()
+// }
 
 impl Sensor {
     fn get_eliminated_range_from_row(&self, row: isize) -> Option<Range> {
@@ -172,7 +284,7 @@ fn merge_ranges(mut ranges: Vec<Range>) -> Vec<Range> {
 }
 
 impl Range {
-    fn new(start: isize, end: isize) -> Self {
+    const fn new(start: isize, end: isize) -> Self {
         Range { start, end }
     }
 
@@ -203,6 +315,15 @@ impl Range {
     }
 }
 
+impl IntoIterator for &Range {
+    type Item = isize;
+    type IntoIter = RangeInclusive<isize>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.start..=self.end
+    }
+}
+
 fn parse_sensors(text: &str) -> Option<Vec<Sensor>> {
     text.trim().split('\n').map(Sensor::parse).collect()
 }
@@ -223,11 +344,11 @@ impl Sensor {
         let beacon_x = parse_isize(3)?;
         let beacon_y = parse_isize(4)?;
 
-        let position = Point {
+        let position = Position {
             x: sensor_x,
             y: sensor_y,
         };
-        let closest_beacon = Point {
+        let closest_beacon = Position {
             x: beacon_x,
             y: beacon_y,
         };
@@ -342,24 +463,28 @@ mod test {
 
     #[test]
     fn test_real_part1() {
-        // assert_eq!(0, Day15.part1(Example::Real, Debug::NotDebug));
+        assert_eq!(4811413, Day15.part1(Example::Real, Debug::NotDebug));
     }
 
     #[test]
-    fn test_examples_part2() {}
+    fn test_examples_part2() {
+        let sensors = parse_sensors(include_str!("../../static/example15.txt")).unwrap();
+        let beacon = find_beacon_position(&sensors, Range::new(0, 20), Range::new(0, 20)).unwrap();
+        assert_eq!(56000011, get_tuning_frequency(&beacon));
+    }
 
     #[test]
     fn test_real_part2() {
-        // assert_eq!(0, Day15.part2(Example::Real, Debug::NotDebug));
+        assert_eq!(13171855019123, Day15.part2(Example::Real, Debug::NotDebug));
     }
 
     fn s(sensor_x: isize, sensor_y: isize, beacon_x: isize, beacon_y: isize) -> Sensor {
         Sensor {
-            position: Point {
+            position: Position {
                 x: sensor_x,
                 y: sensor_y,
             },
-            closest_beacon: Point {
+            closest_beacon: Position {
                 x: beacon_x,
                 y: beacon_y,
             },
