@@ -59,6 +59,7 @@ fn get_day(day_num: u32) -> Option<Box<dyn Day>> {
         13 => Box::new(Day13),
         14 => Box::new(Day14),
         15 => Box::new(Day15),
+        16 => Box::new(Day16),
         17 => Box::new(Day17),
         18 => Box::new(Day18),
         20 => Box::new(Day20),
