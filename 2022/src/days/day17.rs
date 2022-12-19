@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::fmt::{Display, Formatter};
 use std::iter;
 use std::ops::Add;
@@ -32,8 +32,11 @@ impl Day17 {
         chamber.calc_tower_height(&blocks_offsets, &directions, NUM_ROCKS)
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> usize {
-        todo!()
+    fn part2(&self, example: Example, _debug: Debug) -> usize {
+        let directions = parse_directions(&self.read_file(example)).unwrap();
+        let mut chamber = Chamber::default();
+        let blocks_offsets = blocks_to_offsets(&BLOCKS);
+        chamber.calc_tower_height(&blocks_offsets, &directions, NUM_ROCKS2)
     }
 }
 
@@ -41,6 +44,7 @@ const CHAMBER_WIDTH: usize = 7;
 const INIT_DIST_FROM_LEFT: usize = 2;
 const INIT_DIST_FROM_TOP: usize = 4;
 const NUM_ROCKS: usize = 2022;
+const NUM_ROCKS2: usize = 1000000000000;
 
 #[derive(Debug, Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 enum Direction {
@@ -73,6 +77,13 @@ struct Chamber {
     /// Each cell in the chamber after the stored offset. Everything below the [`offset`](Chamber::offset) row has been
     /// discarded but should not be able to affect further falling blocks.
     cells: VecDeque<[Cell; CHAMBER_WIDTH]>,
+}
+
+#[derive(Debug, Hash, Eq, PartialEq)]
+struct HistoryEntry {
+    direction_index: usize,
+    block_index: usize,
+    block_position: Position,
 }
 
 #[rustfmt::skip]
@@ -112,9 +123,10 @@ impl Chamber {
         directions: &[Direction],
         num_blocks: usize,
     ) -> usize {
-        let block_offsets_iter = iter::repeat(blocks_offsets).flatten();
+        // let block_offsets_iter = iter::repeat(blocks_offsets).enumerate().flatten();
+        let block_offsets_iter = blocks_offsets.cycle();
         let mut direction_cycle = directions.cycle();
-        for block_offsets in block_offsets_iter.take(num_blocks) {
+        for (block_index, block_offsets) in block_offsets_iter.take(num_blocks) {
             self.drop_block(block_offsets, &mut direction_cycle);
             self.debug_print();
             debug_println!();
@@ -122,17 +134,61 @@ impl Chamber {
         self.get_top_row_index().unwrap_or(0) + 1
     }
 
+    fn calc_tower_height2(
+        &mut self,
+        blocks_offsets: &[BlockOffsets],
+        directions: &[Direction],
+        num_blocks: usize,
+    ) -> usize {
+        let mut block_offsets_iter = blocks_offsets.cycle();
+        let mut direction_cycle = directions.cycle();
+        let mut history_entries = HashSet::new();
+        const MIN_NUM_REPEATS_IN_ROW: usize = 100;
+        let mut num_repeats_in_a_row = 0;
+        let mut count = 0;
+        loop {
+            let (block_index, block_offsets) = block_offsets_iter.next();
+            count += 1;
+            if count > 1_000_000 {
+                panic!("Probably infinite loop");
+            }
+            let block_position = self.drop_block(block_offsets, &mut direction_cycle);
+            let (direction_index, _) = direction_cycle.peek();
+            let history_entry = HistoryEntry {
+                direction_index,
+                block_index,
+                block_position,
+            };
+            if history_entries.contains(&history_entry) {
+                num_repeats_in_a_row += 1;
+            } else {
+                num_repeats_in_a_row = 0;
+            }
+            if num_repeats_in_a_row > MIN_NUM_REPEATS_IN_ROW {
+                
+            }
+            history_entries.insert(history_entry);
+            self.debug_print();
+            debug_println!();
+            if let Some(cycle_len) = self.detect_cycle(block_index, direction_index) {
+
+            }
+        }
+
+        self.get_top_row_index().unwrap_or(0) + 1
+    }
+
     fn drop_block(
         &mut self,
         block_offets: &BlockOffsets,
         direction_iter: &mut SliceCycle<Direction>,
-    ) {
+    ) -> Position {
         debug_println!("Dropping block");
         let mut position = self.get_block_init_position();
         self.get_row_mut(position.row + 4);
         debug_println!("Starting position: {}", position);
         loop {
-            let direction = direction_iter.next();
+            let (_, direction) = direction_iter.next();
             debug_println!("\tAttempting to move {:?}", direction);
             if let Some(position_after_direction) = position.move_direction(*direction) {
                 if self.is_valid_position(block_offets, position_after_direction) {
@@ -175,6 +231,7 @@ impl Chamber {
             row[column] = Cell::Rock;
             debug_println!("\t\tAfter,  row {}: {:?}", row_index, row);
         }
+        position
     }
 
     fn get_block_init_position(&self) -> Position {
@@ -350,10 +407,14 @@ struct SliceCycle<'a, T> {
 }
 
 impl<'a, T> SliceCycle<'a, T> {
-    fn next(&mut self) -> &'a T {
-        let result = &self.slice[self.index];
+    fn next(&mut self) -> (usize, &'a T) {
+        let result = (self.index, &self.slice[self.index]);
         self.index = (self.index + 1) % self.slice.len();
         result
+    }
+
+    fn peek(&mut self) -> (usize, &'a T) {
+        (self.index, &self.slice[self.index])
     }
 }
 
@@ -372,7 +433,7 @@ impl<T, const N: usize> SliceExt<T> for [T; N] {
 }
 
 impl<'a, T> Iterator for SliceCycle<'a, T> {
-    type Item = &'a T;
+    type Item = (usize, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.next())
@@ -409,15 +470,15 @@ mod test {
     fn test_slice_cycle() {
         let array = [5, 10, 15];
         let mut iter = array.cycle();
-        assert_eq!(&5, iter.next());
-        assert_eq!(&10, iter.next());
-        assert_eq!(&15, iter.next());
-        assert_eq!(&5, iter.next());
-        assert_eq!(&10, iter.next());
-        assert_eq!(&15, iter.next());
-        assert_eq!(&5, iter.next());
+        assert_eq!((0, &5), iter.next());
+        assert_eq!((1, &10), iter.next());
+        assert_eq!((2, &15), iter.next());
+        assert_eq!((0, &5), iter.next());
+        assert_eq!((1, &10), iter.next());
+        assert_eq!((2, &15), iter.next());
+        assert_eq!((0, &5), iter.next());
         for _ in 0..100 {
-            assert_eq!(0, iter.next() % 5);
+            assert_eq!(0, iter.next().1 % 5);
         }
     }
 
