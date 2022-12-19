@@ -6,7 +6,7 @@ use days::*;
 
 mod days;
 
-const DEFAULT_DAY: u32 = 17;
+const DEFAULT_DAY: u32 = 18;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -58,6 +58,7 @@ fn get_day(day_num: u32) -> Option<Box<dyn Day>> {
         14 => Box::new(Day14),
         15 => Box::new(Day15),
         17 => Box::new(Day17),
+        18 => Box::new(Day18),
         _ => return None,
     })
 }
