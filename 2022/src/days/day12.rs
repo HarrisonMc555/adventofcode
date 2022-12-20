@@ -260,7 +260,7 @@ mod test {
         ];
         let expected: Vec<Vec<_>> = expected
             .into_iter()
-            .map(|row| row.into_iter().map(|d| Some(d)).collect())
+            .map(|row| row.into_iter().map(Some).collect())
             .collect();
         assert_eq!(expected, actual.as_rows());
     }

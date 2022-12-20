@@ -305,10 +305,10 @@ fn block_to_offsets(block: [&str; 4]) -> BlockOffsets {
         .collect()
 }
 
-fn block_line_to_offests<'a>(
+fn block_line_to_offests(
     offset_row: usize,
-    line: &'a str,
-) -> impl Iterator<Item = PositionOffset> + 'a {
+    line: &str,
+) -> impl Iterator<Item = PositionOffset> + '_ {
     line.chars()
         .enumerate()
         .filter(move |(_, c)| *c == '#')
@@ -319,7 +319,7 @@ fn block_line_to_offests<'a>(
 }
 
 fn parse_directions(text: &str) -> Option<Vec<Direction>> {
-    text.trim().chars().map(|c| Direction::parse(c)).collect()
+    text.trim().chars().map(Direction::parse).collect()
 }
 
 impl Direction {
@@ -391,7 +391,7 @@ impl<'a, T, const N: usize> SliceExt<T> for &'a [T; N] {
 
 impl<'a, T> SliceExt<T> for &'a [T] {
     fn cycle(&self) -> SliceCycle<T> {
-        if self.len() == 0 {
+        if self.is_empty() {
             panic!("Cannot create cycle with empty slice");
         }
         SliceCycle {

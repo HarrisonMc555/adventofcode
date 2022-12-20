@@ -477,7 +477,7 @@ mod test {
 
         // Some included, some not
         let values = vec![12, 70, -6, -2, 0];
-        assert_eq!(3, count_values_in_ranges(values, ranges.clone()));
+        assert_eq!(3, count_values_in_ranges(values, ranges));
     }
 
     #[test]

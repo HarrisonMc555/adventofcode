@@ -58,7 +58,7 @@ struct BoundingBox {
 fn total_exposed_surface_area(cube_positions: &HashSet<Position>) -> usize {
     cube_positions
         .iter()
-        .map(|cube| cube.exposed_surface_area(&cube_positions))
+        .map(|cube| cube.exposed_surface_area(cube_positions))
         .sum()
 }
 
@@ -72,9 +72,8 @@ fn total_exterior_surface_area(cube_positions: &HashSet<Position>) -> usize {
     let mut exterior_surface_area = 0;
     for air_cube in air_cube_iter {
         debug_println!("Starting exploration at {}", air_cube);
-        match explorer.explore_air_cube(air_cube) {
-            Cell::ExteriorAir => exterior_surface_area += 1,
-            _ => {}
+        if explorer.explore_air_cube(air_cube) == Cell::ExteriorAir {
+            exterior_surface_area += 1;
         }
         debug_print!("After exploration at {}: ", air_cube);
         explorer.debug_print_cells();
@@ -108,7 +107,7 @@ fn total_exterior_surface_area(cube_positions: &HashSet<Position>) -> usize {
     let after_count = cube_positions
         .iter()
         .flat_map(Position::neighbor_cube_positions)
-        .filter(|neighbor| matches!(explorer.cells.get(&neighbor), Some(Cell::ExteriorAir)))
+        .filter(|neighbor| matches!(explorer.cells.get(neighbor), Some(Cell::ExteriorAir)))
         .count();
     debug_println!("Count as you go: {}", exterior_surface_area);
     debug_println!("Count afterward: {}", after_count);
@@ -144,12 +143,12 @@ enum ExploreResult {
 impl Explorer {
     fn new(cube_positions: &HashSet<Position>) -> Self {
         let cells = cube_positions
-            .into_iter()
+            .iter()
             .map(|position| (*position, Cell::Cube))
             .collect();
         Explorer {
             cells,
-            bounding_box: find_bounding_box(cube_positions).unwrap_or_else(BoundingBox::default),
+            bounding_box: find_bounding_box(cube_positions).unwrap_or_default(),
             currently_exploring: HashSet::new(),
         }
     }
@@ -292,7 +291,7 @@ impl Position {
     fn exposed_surface_area(&self, cube_positions: &HashSet<Position>) -> usize {
         self.neighbor_cube_positions()
             .iter()
-            .filter(|neighbor| !cube_positions.contains(&neighbor))
+            .filter(|neighbor| !cube_positions.contains(neighbor))
             .count()
     }
 
