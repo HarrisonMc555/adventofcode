@@ -8,8 +8,8 @@ use crate::days::{Day, Debug, Example, Part};
 use crate::debug_println;
 
 const DEBUG: bool = false;
+// const NUM_MINUTES: usize = 24;
 const NUM_MINUTES: usize = 18;
-// const NUM_MINUTES: usize = 12;
 const GOAL_RESOURCE: Resource = Resource::Geode;
 
 pub struct Day19;
@@ -226,8 +226,22 @@ impl State {
 
     fn theoretical_max(&self, resource: Resource) -> usize {
         let num_curr = self.resources[resource.index()];
-        let num_additional = self.num_minutes * (self.num_minutes - 1) / 2;
-        num_curr + num_additional
+        let num_from_curr_robots = self.robots[resource.index()] * self.num_minutes;
+        // minutes -> robots,resources
+        //  0 -> 0,0
+        //  1 -> 1,0
+        //  2 -> 1,1
+        //  3 -> 2,2
+        //  4 -> 2,4
+        //  5 -> 3,6
+        //  6 -> 3,9
+        //  7 -> 4,12
+        //  8 -> 4,16
+        //  9 -> 5,20
+        // 10 -> 5,25
+        // https://oeis.org/A002620
+        let num_from_additional_robots = self.num_minutes * self.num_minutes / 4;
+        num_curr + num_from_curr_robots + num_from_additional_robots
     }
 }
 
