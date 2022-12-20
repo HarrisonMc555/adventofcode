@@ -7,7 +7,7 @@ use regex::{Captures, Regex};
 use crate::days::{Day, Debug, Example, Part};
 use crate::debug_println;
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 
 pub struct Day19;
 
@@ -26,14 +26,18 @@ impl Day for Day19 {
 }
 
 impl Day19 {
-    fn part1(&self, _example: Example, _debug: Debug) -> usize {
-        todo!()
+    fn part1(&self, example: Example, _debug: Debug) -> usize {
+        let blueprints = parse_blueprints(&self.read_file(example)).unwrap();
+        calc_quality_level_sum(&blueprints, NUM_MINUTES)
     }
 
     fn part2(&self, _example: Example, _debug: Debug) -> usize {
         todo!()
     }
 }
+
+// const NUM_MINUTES: usize = 24;
+const NUM_MINUTES: usize = 16;
 
 #[derive(Debug, Eq, PartialEq)]
 struct Blueprint {
@@ -67,11 +71,144 @@ enum Resource {
     Geode,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+struct State {
+    robots: [usize; Resource::variant_count()],
+    resources: [usize; Resource::variant_count()],
+    num_minutes: usize,
+}
+
+fn calc_quality_level_sum(blueprints: &[Blueprint], num_minutes: usize) -> usize {
+    blueprints
+        .iter()
+        .map(|blueprint| calc_quality_level(blueprint, num_minutes))
+        .sum()
+}
+
+fn calc_quality_level(blueprint: &Blueprint, num_minutes: usize) -> usize {
+    blueprint.id * calc_max_geodes(blueprint, num_minutes)
+}
+
+fn calc_max_geodes(blueprint: &Blueprint, num_minutes: usize) -> usize {
+    debug_println!("=== Calculating max geodes ===");
+    debug_println!("Blueprint {}:", blueprint.id);
+    for robot_recipe in blueprint.robot_recipes.0.iter() {
+        debug_println!("\t{:?}", robot_recipe);
+    }
+    debug_println!("Num minutes: {}", num_minutes);
+    fn helper(blueprint: &Blueprint, mut state: State) -> usize {
+        let prefix = format!(
+            "{}{: >2}: ",
+            " ".repeat(NUM_MINUTES - state.num_minutes),
+            NUM_MINUTES - state.num_minutes
+        );
+        if state.num_minutes == 0 {
+            let result = state.resources[Resource::Ore.index()];
+            debug_println!("{}Out of time, total was {}", prefix, result);
+            // return state.resources[Resource::Geode.index()];
+            // return state.resources[Resource::Ore.index()];
+            return result;
+        }
+        state.step();
+        debug_println!("{}{}", prefix, state.short_string());
+        let mut best_num_geodes = helper(blueprint, state.clone());
+        debug_println!("{}{}: Best when doing nothing: {}", prefix, state.short_string(), best_num_geodes);
+        for (index, costs) in blueprint.robot_recipes.0.iter().enumerate() {
+            if let Some(new_state) = state.build(index, costs) {
+                let short_string = new_state.short_string();
+                debug_println!(
+                    "{}{}: Bought {:?}",
+                    prefix,
+                    short_string,
+                    Resource::from_ordinal(index as i8).unwrap()
+                );
+                let new_num_geodes = helper(blueprint, new_state);
+                debug_println!(
+                    "{}{}: Best num geodes after buying {:?} is {}",
+                    prefix,
+                    short_string,
+                    Resource::from_ordinal(index as i8).unwrap(),
+                    new_num_geodes
+                );
+                if new_num_geodes > best_num_geodes {
+                    debug_println!(
+                        "{}{}: Best num geodes went from {} to {}",
+                        prefix,
+                        short_string,
+                        best_num_geodes,
+                        new_num_geodes
+                    );
+                    best_num_geodes = new_num_geodes;
+                }
+            }
+        }
+        debug_println!(
+            "{}{}: At the end, the best num geodes was {}",
+            prefix,
+            state.short_string(),
+            best_num_geodes
+        );
+        best_num_geodes
+    }
+
+    helper(blueprint, State::new(num_minutes))
+}
+
+impl State {
+    fn new(num_minutes: usize) -> Self {
+        let mut robots = [0; Resource::variant_count()];
+        robots[Resource::Ore.index()] = 1;
+        State {
+            robots,
+            resources: [0; Resource::variant_count()],
+            num_minutes,
+        }
+    }
+
+    fn step(&mut self) {
+        for (robot, resource) in self.robots.iter().zip(self.resources.iter_mut()) {
+            *resource += robot;
+        }
+        self.num_minutes -= 1;
+    }
+
+    fn build(&self, robot_index: usize, costs: &Costs) -> Option<Self> {
+        let mut resources = self.resources.clone();
+        for (index, cost) in costs.0.iter().enumerate() {
+            match resources[index].checked_sub(*cost) {
+                None => return None,
+                Some(new_resource) => resources[index] = new_resource,
+            }
+        }
+        let mut robots = self.robots.clone();
+        robots[robot_index] += 1;
+        Some(State {
+            robots,
+            resources,
+            num_minutes: self.num_minutes,
+        })
+    }
+
+    fn short_string(&self) -> String {
+        format!("{:?} {:?}", self.robots, self.resources)
+    }
+}
+
+fn parse_blueprints(text: &str) -> Result<Vec<Blueprint>, String> {
+    text.trim().split('\n').map(|line| line.parse()).collect()
+}
+
+impl Resource {
+    fn index(self) -> usize {
+        self.ordinal() as usize
+    }
+}
+
 impl FromStr for Blueprint {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        debug_println!("Parsing \"{}\" as {}", s, std::any::type_name::<Self>());
+        // debug_println!("Parsing \"{}\" as {}", s, std::any::type_name::<Self>());
         lazy_static! {
             static ref RE: Regex = Regex::new(r"^Blueprint (\d+):(.*)$").unwrap();
         }
@@ -88,7 +225,7 @@ impl FromStr for RobotRecipes {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        debug_println!("Parsing \"{}\" as {}", s, std::any::type_name::<Self>());
+        // debug_println!("Parsing \"{}\" as {}", s, std::any::type_name::<Self>());
         let robot_recipes = s
             .trim()
             .split(".")
@@ -116,7 +253,8 @@ impl FromStr for RobotRecipes {
         let array = costs.try_into().map_err(|costs: Vec<_>| {
             format!(
                 "There should have been {} elements but there were {}",
-                Resource::variant_count(), costs.len()
+                Resource::variant_count(),
+                costs.len()
             )
         })?;
         Ok(RobotRecipes(array))
@@ -127,7 +265,7 @@ impl FromStr for RobotRecipe {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        debug_println!("Parsing \"{}\" as {}", s, std::any::type_name::<Self>());
+        // debug_println!("Parsing \"{}\" as {}", s, std::any::type_name::<Self>());
         lazy_static! {
             static ref RE: Regex = Regex::new(r"Each (\w+) robot costs ([^.]+)\.?").unwrap();
         }
@@ -147,11 +285,11 @@ impl FromStr for Costs {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        debug_println!("Parsing \"{}\" as {}", s, std::any::type_name::<Self>());
+        // debug_println!("Parsing \"{}\" as {}", s, std::any::type_name::<Self>());
         let mut costs = [0, 0, 0, 0];
         for cost in s.trim().split(" and ").map(|c| c.parse()) {
             let cost: Cost = cost?;
-            let index = cost.resource.ordinal() as usize;
+            let index = cost.resource.index();
             let amount = &mut costs[index];
             if *amount > 0 {
                 return Err(format!(
@@ -172,7 +310,7 @@ impl FromStr for Cost {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        debug_println!("Parsing \"{}\" as {}", s, std::any::type_name::<Self>());
+        // debug_println!("Parsing \"{}\" as {}", s, std::any::type_name::<Self>());
         lazy_static! {
             static ref RE: Regex = Regex::new(r"(\d+) (\w+)").unwrap();
         }
@@ -189,7 +327,7 @@ impl FromStr for Resource {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        debug_println!("Parsing \"{}\" as {}", s, std::any::type_name::<Self>());
+        // debug_println!("Parsing \"{}\" as {}", s, std::any::type_name::<Self>());
         Ok(match s {
             "ore" => Resource::Ore,
             "clay" => Resource::Clay,
@@ -261,6 +399,7 @@ mod test {
             ]),
         };
         assert_eq!(expected1, actual1);
+        assert_eq!(9, calc_max_geodes(&actual1, NUM_MINUTES));
 
         let actual2 = "Blueprint 2: Each ore robot costs 2 ore. Each clay robot costs 3 ore. Each obsidian robot costs 3 ore and 8 clay. Each geode robot costs 3 ore and 12 obsidian.".parse().unwrap();
         let expected2 = Blueprint {
@@ -273,6 +412,9 @@ mod test {
             ]),
         };
         assert_eq!(expected2, actual2);
+        assert_eq!(12, calc_max_geodes(&actual1, NUM_MINUTES));
+
+        assert_eq!(33, Day19.part1(Example::Example, Debug::NotDebug));
     }
 
     #[test]
