@@ -8,6 +8,9 @@ use crate::days::{Day, Debug, Example, Part};
 use crate::debug_println;
 
 const DEBUG: bool = false;
+const NUM_MINUTES: usize = 18;
+// const NUM_MINUTES: usize = 12;
+const GOAL_RESOURCE: Resource = Resource::Geode;
 
 pub struct Day19;
 
@@ -35,9 +38,6 @@ impl Day19 {
         todo!()
     }
 }
-
-// const NUM_MINUTES: usize = 24;
-const NUM_MINUTES: usize = 16;
 
 #[derive(Debug, Eq, PartialEq)]
 struct Blueprint {
@@ -90,8 +90,8 @@ fn calc_quality_level(blueprint: &Blueprint, num_minutes: usize) -> usize {
 }
 
 fn calc_max_geodes(blueprint: &Blueprint, num_minutes: usize) -> usize {
-    debug_println!("=== Calculating max geodes ===");
-    debug_println!("Blueprint {}:", blueprint.id);
+    println!("=== Calculating max geodes ===");
+    println!("Blueprint {}:", blueprint.id);
     for robot_recipe in blueprint.robot_recipes.0.iter() {
         debug_println!("\t{:?}", robot_recipe);
     }
@@ -103,19 +103,31 @@ fn calc_max_geodes(blueprint: &Blueprint, num_minutes: usize) -> usize {
             NUM_MINUTES - state.num_minutes
         );
         if state.num_minutes == 0 {
-            let result = state.resources[Resource::Ore.index()];
-            debug_println!("{}Out of time, total was {}", prefix, result);
-            // return state.resources[Resource::Geode.index()];
-            // return state.resources[Resource::Ore.index()];
+            let result = state.resources[GOAL_RESOURCE.index()];
+            debug_println!(
+                "{}Out of time, total {:?} was {}",
+                prefix,
+                GOAL_RESOURCE,
+                result
+            );
             return result;
         }
         state.step();
         debug_println!("{}{}", prefix, state.short_string());
-        let mut best_num_geodes = helper(blueprint, state.clone());
-        debug_println!("{}{}: Best when doing nothing: {}", prefix, state.short_string(), best_num_geodes);
-        for (index, costs) in blueprint.robot_recipes.0.iter().enumerate() {
+        let mut best_num_geodes = 0;
+        for (index, costs) in blueprint.robot_recipes.0.iter().enumerate().rev() {
             if let Some(new_state) = state.build(index, costs) {
                 let short_string = new_state.short_string();
+                if new_state.theoretical_max(GOAL_RESOURCE) <= best_num_geodes {
+                    debug_println!(
+                        "{}{}: Theoretical maximum is {}, which isn't more than current best {}, skipping",
+                        prefix,
+                        short_string,
+                        new_state.theoretical_max(GOAL_RESOURCE),
+                        best_num_geodes
+                    );
+                    continue;
+                }
                 debug_println!(
                     "{}{}: Bought {:?}",
                     prefix,
@@ -142,16 +154,35 @@ fn calc_max_geodes(blueprint: &Blueprint, num_minutes: usize) -> usize {
                 }
             }
         }
+        let short_string = state.short_string();
+        if state.theoretical_max(GOAL_RESOURCE) <= best_num_geodes {
+            debug_println!(
+                "{}{}: Theoretical maximum is {}, which isn't more than current best {}, \
+                    skipping",
+                prefix,
+                short_string,
+                state.theoretical_max(GOAL_RESOURCE),
+                best_num_geodes
+            );
+        } else {
+            best_num_geodes = std::cmp::max(best_num_geodes, helper(blueprint, state));
+        }
         debug_println!(
             "{}{}: At the end, the best num geodes was {}",
             prefix,
-            state.short_string(),
+            short_string,
             best_num_geodes
         );
         best_num_geodes
     }
 
-    helper(blueprint, State::new(num_minutes))
+    let result = helper(blueprint, State::new(num_minutes));
+    debug_println!();
+    debug_println!("All done for blueprint {}", blueprint.id);
+    println!("Maximum number of geodes is {}", result);
+    println!("=== End ===");
+    result
+    // helper(blueprint, State::new(num_minutes))
 }
 
 impl State {
@@ -191,6 +222,12 @@ impl State {
 
     fn short_string(&self) -> String {
         format!("{:?} {:?}", self.robots, self.resources)
+    }
+
+    fn theoretical_max(&self, resource: Resource) -> usize {
+        let num_curr = self.resources[resource.index()];
+        let num_additional = self.num_minutes * (self.num_minutes - 1) / 2;
+        num_curr + num_additional
     }
 }
 
