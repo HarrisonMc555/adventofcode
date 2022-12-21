@@ -118,12 +118,13 @@ fn calc_max_geodes(blueprint: &Blueprint, num_minutes: usize) -> usize {
         for (index, costs) in blueprint.robot_recipes.0.iter().enumerate().rev() {
             if let Some(new_state) = state.build(index, costs) {
                 let short_string = new_state.short_string();
-                if new_state.theoretical_max(GOAL_RESOURCE) <= best_num_geodes {
+                let theoretical_max = new_state.theoretical_max(blueprint, GOAL_RESOURCE);
+                if theoretical_max <= best_num_geodes {
                     debug_println!(
                         "{}{}: Theoretical maximum is {}, which isn't more than current best {}, skipping",
                         prefix,
                         short_string,
-                        new_state.theoretical_max(GOAL_RESOURCE),
+                        theoretical_max,
                         best_num_geodes
                     );
                     continue;
@@ -155,13 +156,14 @@ fn calc_max_geodes(blueprint: &Blueprint, num_minutes: usize) -> usize {
             }
         }
         let short_string = state.short_string();
-        if state.theoretical_max(GOAL_RESOURCE) <= best_num_geodes {
+        let theoretical_max = state.theoretical_max(blueprint, GOAL_RESOURCE);
+        if theoretical_max <= best_num_geodes {
             debug_println!(
                 "{}{}: Theoretical maximum is {}, which isn't more than current best {}, \
                     skipping",
                 prefix,
                 short_string,
-                state.theoretical_max(GOAL_RESOURCE),
+                theoretical_max,
                 best_num_geodes
             );
         } else {
@@ -224,9 +226,34 @@ impl State {
         format!("{:?} {:?}", self.robots, self.resources)
     }
 
-    fn theoretical_max(&self, resource: Resource) -> usize {
+    fn theoretical_max(&self, blueprint: &Blueprint, resource: Resource) -> usize {
+        // Max amount of ore
+        // - Buy no more robots: curr_ore + curr_ore_robots * num_minutes
+        // - Buy one more robot: curr_ore + curr_ore_robots * num_minutes + (num_minutes - 2) - ore_robot_cost
+        // - Buy two more robots: curr_ore + curr_ore_robots * num_minutes +
+        //      (num_minutes - 2) - ore_robot_cost +
+        //      (num_minutes - 4) - ore_robot_cost
+        // - Buy n more robots: curr_ore + curr_ore_robots * num_minutes +
+        //      (sum from i=1 to n of num_minutes - 2*i) - n * ore_robot_cost
+        // - Buy n more robots: curr_ore + curr_ore_robots * num_minutes +
+        //      n * num_minutes - (n * (n + 1)) - (n * ore_robot_cost)
+
+
+
         let num_curr = self.resources[resource.index()];
         let num_from_curr_robots = self.robots[resource.index()] * self.num_minutes;
+        if resource.index() == 0 {
+            let ore_robot_cost = blueprint.robot_recipes.0[resource.index()].0[resource.index()];
+            let mut cur_best = 0;
+            for num_purchased_robots in 1.. {
+                let n = num_purchased_robots;
+                match (n * self.num_minutes).checked_sub(n * (n + 1) + n * ore_robot_cost) {
+                    Some(num_ore) if num_ore > cur_best => cur_best = num_ore,
+                    _ => break,
+                }
+            }
+            return num_curr + num_from_curr_robots + cur_best;
+        }
         // minutes -> robots,resources
         //  0 -> 0,0
         //  1 -> 1,0
@@ -241,7 +268,10 @@ impl State {
         // 10 -> 5,25
         // https://oeis.org/A002620
         let num_from_additional_robots = self.num_minutes * self.num_minutes / 4;
-        num_curr + num_from_curr_robots + num_from_additional_robots
+
+
+
+        todo!()
     }
 }
 
