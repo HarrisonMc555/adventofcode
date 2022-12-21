@@ -5,6 +5,7 @@ use crate::days::{Day, Debug, Example, Part};
 use crate::{debug_print, debug_println};
 
 const DEBUG: bool = false;
+const VALIDATE: bool = false;
 
 pub struct Day20;
 
@@ -28,13 +29,16 @@ impl Day20 {
         find_coordinate_sum(nums, &GROVE_INDICES).unwrap()
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> isize {
-        todo!()
+    fn part2(&self, example: Example, _debug: Debug) -> isize {
+        let nums = parse_nums(&self.read_file(example)).unwrap();
+        find_coordinate_sum2(nums, &GROVE_INDICES, DECRYPTION_KEY, NUM_MIX_ROUNDS).unwrap()
     }
 }
 
 const GROVE_INDEX_START: isize = 0;
 const GROVE_INDICES: [usize; 3] = [1000, 2000, 3000];
+const DECRYPTION_KEY: isize = 811589153;
+const NUM_MIX_ROUNDS: usize = 10;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct Mixer {
@@ -56,7 +60,36 @@ struct OffsetVec<T> {
 
 fn find_coordinate_sum(nums: Vec<isize>, indices_after_zero: &[usize]) -> Option<isize> {
     let mut mixer = Mixer::new(nums);
+    debug_println!("Initial arrangement:");
+    mixer.debug_print();
+    debug_println!();
     mixer.mix();
+    let mut sum = 0;
+    for &index in indices_after_zero {
+        sum += mixer.find_after(GROVE_INDEX_START, index)?;
+    }
+    Some(sum)
+}
+
+fn find_coordinate_sum2(
+    nums: Vec<isize>,
+    indices_after_zero: &[usize],
+    decryption_key: isize,
+    num_mix_rounds: usize,
+) -> Option<isize> {
+    let mut mixer = Mixer::new(nums);
+    for value in mixer.values.iter_mut() {
+        *value *= decryption_key;
+    }
+    debug_println!("Initial arrangement:");
+    mixer.debug_print();
+    debug_println!();
+    for i in 0..num_mix_rounds {
+        mixer.mix();
+        debug_println!("After {} round of mixing:", i);
+        mixer.debug_print();
+        debug_println!();
+    }
     let mut sum = 0;
     for &index in indices_after_zero {
         sum += mixer.find_after(GROVE_INDEX_START, index)?;
@@ -71,18 +104,15 @@ impl Mixer {
             links[index].next = (index + 1) % links.len();
             links[index].prev = index.checked_sub(1).unwrap_or(values.len() - 1);
         }
-        Mixer { values, links }
+        let mixer = Mixer { values, links };
+        mixer.validate();
+        mixer
     }
 
     fn mix(&mut self) {
-        debug_println!("Initial arrangement:");
-        self.debug_print();
-        debug_println!();
         for index in 0..self.links.len() {
             self.mix_one(index);
-            if DEBUG {
-                self.validate();
-            }
+            self.validate();
             let value = self.values[index];
             if self.values[index] == 0 {
                 debug_println!("{} does not move:", value);
@@ -98,21 +128,18 @@ impl Mixer {
 
     fn mix_one(&mut self, index: usize) {
         let value = self.values[index];
-        if value == 0 {
+        let num_after = value.rem_euclid(self.links.len() as isize - 1);
+        debug_println!("\tShift {} by {} (wrapped to {})", value, value, num_after);
+        if num_after == 0 {
+            debug_println!("\t\tShifted by zero, don't shift");
             return;
         }
         let Link { prev, next } = self.links[index];
         self.links[prev].next = next;
         self.links[next].prev = prev;
         let mut dest_index = index;
-        if value < 0 {
-            for _ in value..=0 {
-                dest_index = self.links[dest_index].prev;
-            }
-        } else {
-            for _ in 0..value {
-                dest_index = self.links[dest_index].next;
-            }
+        for _ in 0..num_after {
+            dest_index = self.links[dest_index].next;
         }
         let old_next_index = self.links[dest_index].next;
         self.links[old_next_index].prev = index;
@@ -146,9 +173,13 @@ impl Mixer {
         Some(result_value)
     }
 
-    fn validate(&self) -> bool {
+    //noinspection RsConstantConditionIf
+    fn validate(&self) {
+        if !VALIDATE {
+            return;
+        }
         if self.links.is_empty() {
-            return true;
+            return;
         }
         use std::collections::HashSet;
         let mut seen_indices = HashSet::new();
@@ -156,8 +187,7 @@ impl Mixer {
         let mut cur_index = start_index;
         loop {
             if seen_indices.contains(&cur_index) {
-                debug_println!("Already seen index {}", cur_index);
-                return false;
+                panic!("Already seen index {}", cur_index);
             }
             seen_indices.insert(cur_index);
             let next_index = self.links[cur_index].next;
@@ -166,25 +196,29 @@ impl Mixer {
                 let cur_value = self.values[cur_index];
                 let next_value = self.values[next_index];
                 let next_prev_value = self.values[next_prev_index];
+                debug_println!("Mismatch:");
                 debug_println!(
-                    "Indices: {} -> {}, but {} <- {}",
+                    "\tIndices: {} -> {}, but {} <- {}",
                     cur_index,
                     next_index,
                     next_prev_index,
                     next_index
                 );
                 debug_println!(
-                    "Values:  {} -> {}, but {} <- {}",
+                    "\tValues:  {} -> {}, but {} <- {}",
                     cur_value,
                     next_value,
                     next_prev_value,
                     next_value
                 );
-                return false;
+                panic!(
+                    "Mismatched indices: {} -> {}, but {} <- {}",
+                    cur_index, next_index, next_prev_index, next_index
+                );
             }
             cur_index = next_index;
             if cur_index == start_index {
-                return true;
+                return;
             }
         }
     }
@@ -255,11 +289,11 @@ mod test {
 
     #[test]
     fn test_examples_part2() {
-        // assert_eq!(0, Day20.part2(Example::Example, Debug::NotDebug));
+        assert_eq!(1623178306, Day20.part2(Example::Example, Debug::NotDebug));
     }
 
     #[test]
     fn test_real_part2() {
-        // assert_eq!(0, Day20.part2(Example::Real, Debug::NotDebug));
+        assert_eq!(9995532008348, Day20.part2(Example::Real, Debug::NotDebug));
     }
 }
