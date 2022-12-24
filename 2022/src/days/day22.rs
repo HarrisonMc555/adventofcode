@@ -1,4 +1,4 @@
-use array2d::Array2D;
+use std::collections::HashMap;
 
 use crate::days::{Day, Debug, Example, Part};
 use crate::{debug_print, debug_println};
@@ -22,20 +22,26 @@ impl Day for Day22 {
 }
 
 impl Day22 {
-    fn part1(&self, example: Example, _debug: Debug) -> usize {
+    fn part1(&self, example: Example, _debug: Debug) -> isize {
         let (board, commands) = parse(&self.read_file(example)).unwrap();
         let state = simulate(board, &commands).unwrap();
         get_password(state)
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> usize {
+    fn part2(&self, _example: Example, _debug: Debug) -> isize {
         todo!()
     }
 }
 
 const BASE: u32 = 10;
-type Board = Array2D<Cell>;
 type Commands = Vec<Command>;
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+struct Board {
+    cells: HashMap<(isize, isize), Cell>,
+    num_rows: isize,
+    num_cols: isize,
+}
 
 #[derive(Debug, Hash, Copy, Clone, Eq, PartialEq)]
 enum Cell {
@@ -56,11 +62,11 @@ enum Direction {
     Right,
 }
 
-#[derive(Debug, Hash, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 struct State {
     board: Board,
-    row: usize,
-    col: usize,
+    row: isize,
+    col: isize,
     orientation: Orientation,
 }
 
@@ -73,7 +79,7 @@ enum Orientation {
     Left,
 }
 
-fn get_password(state: State) -> usize {
+fn get_password(state: State) -> isize {
     let row = state.row + 1;
     let col = state.col + 1;
     let facing = match state.orientation {
@@ -95,10 +101,12 @@ fn simulate(board: Board, commands: &Commands) -> Option<State> {
 
 impl State {
     fn new(board: Board) -> Option<Self> {
-        let (row, col) = board
-            .enumerate_row_major()
-            .find(|(_, cell)| **cell == Cell::Open)
-            .map(|(i, _)| i)?;
+        let (row, col) = board.cells
+            .iter()
+            .filter(|(_, cell)| **cell == Cell::Open)
+            .map(|(index, _)| index)
+            .copied()
+            .min()?;
         Some(State {
             board,
             row,
@@ -121,49 +129,26 @@ impl State {
     }
 
     fn step(&mut self) {
-        #[derive(Debug, Hash, Copy, Clone, Eq, PartialEq)]
-        enum Diff {
-            Increment,
-            Decrement,
-            Unchanged,
-        }
         let (diff_row, diff_col) = match self.orientation {
-            Orientation::Up => (Diff::Decrement, Diff::Unchanged),
-            Orientation::Right => (Diff::Unchanged, Diff::Increment),
-            Orientation::Down => (Diff::Increment, Diff::Unchanged),
-            Orientation::Left => (Diff::Unchanged, Diff::Decrement),
+            Orientation::Up => (-1, 0),
+            Orientation::Right => (0, 1),
+            Orientation::Down => (1, 0),
+            Orientation::Left => (0, -1),
         };
 
-        fn apply(num: usize, diff: Diff, max: usize) -> usize {
-            match diff {
-                Diff::Unchanged => num,
-                Diff::Increment => {
-                    let new = num + 1;
-                    if new > max {
-                        0
-                    } else {
-                        new
-                    }
-                }
-                Diff::Decrement => num.checked_sub(1).unwrap_or(max),
-            }
-        }
-
-        let max_row = self.board.num_rows() - 1;
-        let max_col = self.board.num_columns() - 1;
         let mut row = self.row;
         let mut col = self.col;
         loop {
-            let new_row = apply(row, diff_row, max_row);
-            let new_col = apply(col, diff_col, max_col);
-            match self.board[(new_row, new_col)] {
-                Cell::Open => {
+            let new_row = (row + diff_row).rem_euclid(self.board.num_rows);
+            let new_col = (col + diff_col).rem_euclid(self.board.num_cols);
+            match self.board.cells.get(&(new_row, new_col)) {
+                Some(Cell::Open) => {
                     self.row = new_row;
                     self.col = new_col;
                     return;
                 }
-                Cell::Solid => return,
-                Cell::Nonexistent => {
+                Some(Cell::Solid) => return,
+                Some(Cell::Nonexistent) | None => {
                     row = new_row;
                     col = new_col;
                     continue;
@@ -211,8 +196,8 @@ fn parse(text: &str) -> Option<(Board, Commands)> {
     Some((board, commands))
 }
 
-fn parse_board(text: &str) -> Option<Array2D<Cell>> {
-    let mut rows = text
+fn parse_board(text: &str) -> Option<Board> {
+    let rows = text
         .lines()
         .map(|line| {
             line.chars()
@@ -228,16 +213,23 @@ fn parse_board(text: &str) -> Option<Array2D<Cell>> {
         debug_println!();
     }
 
-    let max_num_columns = rows.iter().map(|row| row.len()).max()?;
-    for row in rows.iter_mut() {
-        while row.len() < max_num_columns {
-            row.push(Cell::Nonexistent);
+    let num_rows = rows.len() as isize;
+    let num_cols = rows.iter().map(|row| row.len()).max()? as isize;
+    let mut cells = HashMap::new();
+    for (row_index, row) in rows.into_iter().enumerate() {
+        for (col_index, cell) in row.into_iter().enumerate() {
+            if cell != Cell::Nonexistent {
+                cells.insert((row_index as isize, col_index as isize), cell);
+            }
         }
     }
 
-    let result = Array2D::from_rows(&rows);
-    debug_println!("Result: {:?}", result);
-    result.ok()
+    debug_println!("Result: {:?}", cells);
+    Some(Board {
+        cells,
+        num_rows,
+        num_cols,
+    })
 }
 
 fn parse_commands(text: &str) -> Option<Commands> {
