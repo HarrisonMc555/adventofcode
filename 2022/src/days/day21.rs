@@ -194,12 +194,12 @@ fn evaluate_partial_operation(
             OperationResult::Complete(operator.apply(num1, num2))
         }
         (OperationResult::Complete(num1), OperationResult::Partial(stack)) => {
-            let mut stack = stack.clone();
+            let mut stack = stack;
             stack.push((operator.inverse_right_unknown(), num1));
             OperationResult::Partial(stack)
         }
         (OperationResult::Partial(stack), OperationResult::Complete(num2)) => {
-            let mut stack = stack.clone();
+            let mut stack = stack;
             stack.push((operator.inverse_left_unknown(), num2));
             OperationResult::Partial(stack)
         }
