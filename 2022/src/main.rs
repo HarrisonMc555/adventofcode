@@ -1,4 +1,5 @@
 extern crate core;
+#[macro_use] extern crate enum_ordinalize;
 
 use clap::Parser;
 
