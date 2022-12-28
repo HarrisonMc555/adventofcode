@@ -1,12 +1,12 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::fmt::{Display, Formatter};
 use std::iter;
-use std::ops::Add;
+use std::ops::{Add, Sub};
 
 use crate::days::{Day, Debug, Example, Part};
 use crate::{debug_print, debug_println};
 
-const DEBUG: bool = false;
+const DEBUG: bool = true;
 
 pub struct Day17;
 
@@ -36,7 +36,7 @@ impl Day17 {
         let directions = parse_directions(&self.read_file(example)).unwrap();
         let mut chamber = Chamber::default();
         let blocks_offsets = blocks_to_offsets(&BLOCKS);
-        chamber.calc_tower_height(&blocks_offsets, &directions, NUM_ROCKS2)
+        chamber.calc_tower_height2(&blocks_offsets, &directions, NUM_ROCKS)
     }
 }
 
@@ -44,7 +44,7 @@ const CHAMBER_WIDTH: usize = 7;
 const INIT_DIST_FROM_LEFT: usize = 2;
 const INIT_DIST_FROM_TOP: usize = 4;
 const NUM_ROCKS: usize = 2022;
-const NUM_ROCKS2: usize = 1000000000000;
+const MIN_IDENTICAL_COUNT: usize = 20;
 
 #[derive(Debug, Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 enum Direction {
@@ -62,14 +62,14 @@ type BlockOffsets = Vec<PositionOffset>;
 
 #[derive(Debug, Hash, Copy, Clone, Eq, PartialEq)]
 struct Position {
-    row: usize,
-    column: usize,
+    row: isize,
+    column: isize,
 }
 
 #[derive(Debug, Hash, Copy, Clone, Eq, PartialEq)]
 struct PositionOffset {
-    row_offset: usize,
-    column_offset: usize,
+    row_offset: isize,
+    column_offset: isize,
 }
 
 #[derive(Debug, Default)]
@@ -77,13 +77,6 @@ struct Chamber {
     /// Each cell in the chamber after the stored offset. Everything below the [`offset`](Chamber::offset) row has been
     /// discarded but should not be able to affect further falling blocks.
     cells: VecDeque<[Cell; CHAMBER_WIDTH]>,
-}
-
-#[derive(Debug, Hash, Eq, PartialEq)]
-struct HistoryEntry {
-    direction_index: usize,
-    block_index: usize,
-    block_position: Position,
 }
 
 #[rustfmt::skip]
@@ -123,10 +116,9 @@ impl Chamber {
         directions: &[Direction],
         num_blocks: usize,
     ) -> usize {
-        // let block_offsets_iter = iter::repeat(blocks_offsets).enumerate().flatten();
-        let block_offsets_iter = blocks_offsets.cycle();
+        let block_offsets_iter = iter::repeat(blocks_offsets).flatten();
         let mut direction_cycle = directions.cycle();
-        for (block_index, block_offsets) in block_offsets_iter.take(num_blocks) {
+        for block_offsets in block_offsets_iter.take(num_blocks) {
             self.drop_block(block_offsets, &mut direction_cycle);
             self.debug_print();
             debug_println!();
@@ -140,58 +132,135 @@ impl Chamber {
         directions: &[Direction],
         num_blocks: usize,
     ) -> usize {
-        let mut block_offsets_iter = blocks_offsets.cycle();
-        let mut direction_cycle = directions.cycle();
-        let mut history_entries = HashSet::new();
-        const MIN_NUM_REPEATS_IN_ROW: usize = 100;
-        let mut num_repeats_in_a_row = 0;
-        let mut count = 0;
-        loop {
-            let (block_index, block_offsets) = block_offsets_iter.next();
-            count += 1;
-            if count > 1_000_000 {
-                panic!("Probably infinite loop");
+        debug_println!("Calculating tower height 2 ({} blocks)", num_blocks);
+        let mut direction_index = 0;
+        let mut last_dropped_offsets = HashMap::new();
+        let mut identical_count = 0;
+        let mut cycle_start_position = Position { row: 0, column: 0 };
+        let mut previous_dropped_position =
+            self.drop_block2(&blocks_offsets[0], &directions, &mut direction_index);
+        let mut total_index = 1;
+        let (cycle_end_position, cycle_len) = loop {
+            if total_index >= num_blocks {
+                break (previous_dropped_position, 0);
             }
-            let block_position = self.drop_block(block_offsets, &mut direction_cycle);
-            let (direction_index, _) = direction_cycle.peek();
-            let history_entry = HistoryEntry {
-                direction_index,
+            total_index += 1;
+            if total_index > 2023 {
+                panic!();
+            }
+            let block_index = total_index % blocks_offsets.len();
+            debug_println!(
+                "Block index: {}, {} total",
                 block_index,
-                block_position,
-            };
-            if history_entries.contains(&history_entry) {
-                num_repeats_in_a_row += 1;
-            } else {
-                num_repeats_in_a_row = 0;
+                blocks_offsets.len()
+            );
+            let block_offsets = &blocks_offsets[block_index];
+            let dropped_position =
+                self.drop_block2(block_offsets, &directions, &mut direction_index);
+            let dropped_offset = dropped_position - previous_dropped_position;
+            let key = (block_index, direction_index);
+            debug_println!(
+                "Dropped position: {:?}, previous position: {:?}, offset: {:?}",
+                dropped_position,
+                previous_dropped_position,
+                dropped_offset
+            );
+            debug_println!(
+                "Last value for key {:?} was {:?}",
+                key,
+                last_dropped_offsets.get(&key)
+            );
+            match last_dropped_offsets.get(&key) {
+                Some((offset, index)) if *offset == dropped_offset => {
+                    debug_println!("Offset matches: {:?}", dropped_offset);
+                    if identical_count == 0 {
+                        debug_println!(
+                            "\tInitializing cycle: {:?}, {:?}",
+                            total_index,
+                            dropped_position
+                        );
+                        cycle_start_position = dropped_position;
+                    } else {
+                        debug_println!(
+                            "\tIdentical count: {} -> {}",
+                            identical_count,
+                            identical_count + 1
+                        );
+                    }
+                    identical_count += 1;
+                    if identical_count >= MIN_IDENTICAL_COUNT {
+                        debug_println!("Found {} identical drops in a row", identical_count);
+                        break (dropped_position, total_index - index);
+                    }
+                }
+                _ => {
+                    debug_println!("Offset does NOT match, resetting identical count");
+                    identical_count = 0;
+                }
             }
-            if num_repeats_in_a_row > MIN_NUM_REPEATS_IN_ROW {
-                
-            }
-            history_entries.insert(history_entry);
+
+            previous_dropped_position = dropped_position;
+            last_dropped_offsets.insert(key, (dropped_offset, total_index));
             self.debug_print();
             debug_println!();
-            if let Some(cycle_len) = self.detect_cycle(block_index, direction_index) {
+        };
+        self.debug_print();
+        debug_println!();
 
-            }
+        let cycle_height = cycle_end_position.row - cycle_start_position.row;
+        dbg!(total_index, cycle_len, cycle_end_position, cycle_start_position, cycle_height);
+
+        if cycle_len <= 0 {
+            debug_println!(
+                "Cycle length is 0, returning top row index {:?}",
+                self.get_top_row_index()
+            );
+            return self.get_top_row_index().unwrap();
         }
 
-        self.get_top_row_index().unwrap_or(0) + 1
+        let num_blocks_remaining = num_blocks - total_index;
+        let num_cycles = num_blocks_remaining / cycle_len;
+        let num_blocks_after_cycles = num_blocks_remaining % cycle_len;
+        dbg!(num_blocks_remaining, num_cycles, num_blocks_after_cycles);
+        for _ in 0..num_blocks_after_cycles {
+            let block_index = total_index % blocks_offsets.len();
+            let block_offsets = &blocks_offsets[block_index];
+            total_index += 1;
+            self.drop_block2(block_offsets, &directions, &mut direction_index);
+        }
+
+        // before cycle + (cycle * num_cycles) + after cycle
+        dbg!(
+            total_index,
+            num_blocks,
+            num_blocks_remaining,
+            num_cycles,
+            num_blocks_after_cycles,
+            cycle_start_position,
+            cycle_height,
+            num_cycles,
+            self.get_top_row_index(),
+            cycle_end_position
+        );
+        cycle_start_position.row as usize
+            + (cycle_height as usize * num_cycles)
+            + (self.get_top_row_index().unwrap() - cycle_end_position.row as usize)
     }
 
     fn drop_block(
         &mut self,
-        block_offets: &BlockOffsets,
+        block_offsets: &BlockOffsets,
         direction_iter: &mut SliceCycle<Direction>,
-    ) -> Position {
-        debug_println!("Dropping block");
+    ) {
+        debug_println!("Dropping block: {:?}", block_offsets);
         let mut position = self.get_block_init_position();
         self.get_row_mut(position.row + 4);
         debug_println!("Starting position: {}", position);
         loop {
-            let (_, direction) = direction_iter.next();
+            let direction = direction_iter.next();
             debug_println!("\tAttempting to move {:?}", direction);
             if let Some(position_after_direction) = position.move_direction(*direction) {
-                if self.is_valid_position(block_offets, position_after_direction) {
+                if self.is_valid_position(block_offsets, position_after_direction) {
                     debug_println!("\t\tNew position {} is valid", position_after_direction);
                     position = position_after_direction;
                 } else {
@@ -205,7 +274,7 @@ impl Chamber {
                 break;
             };
             debug_println!("\t\tAfter falling, new position is {}", position_after_fall);
-            if self.is_valid_position(block_offets, position_after_fall) {
+            if self.is_valid_position(block_offsets, position_after_fall) {
                 debug_println!(
                     "\t\tAfter falling, new position {} is valid",
                     position_after_fall
@@ -221,16 +290,74 @@ impl Chamber {
         }
 
         debug_println!("Now settled at {}", position);
-        for offset in block_offets {
+        for offset in block_offsets {
             debug_println!("\tOffset: {}", offset);
             let Position { row, column } = position + offset;
             let row_index = row;
             debug_println!("\t\tNew position: ({},{})", row, column);
             let row = self.get_row_mut(row);
             debug_println!("\t\tBefore, row {}: {:?}", row_index, row);
-            row[column] = Cell::Rock;
+            row[column as usize] = Cell::Rock;
             debug_println!("\t\tAfter,  row {}: {:?}", row_index, row);
         }
+    }
+
+    fn drop_block2(
+        &mut self,
+        block_offsets: &BlockOffsets,
+        directions: &[Direction],
+        direction_index: &mut usize,
+    ) -> Position {
+        debug_println!("Dropping block: {:?}", block_offsets);
+        let mut position = self.get_block_init_position();
+        self.get_row_mut(position.row + 4);
+        debug_println!("Starting position: {}", position);
+        loop {
+            let direction = directions[*direction_index];
+            *direction_index = (*direction_index + 1) % directions.len();
+            debug_println!("\tAttempting to move {:?}", direction);
+            if let Some(position_after_direction) = position.move_direction(direction) {
+                if self.is_valid_position(block_offsets, position_after_direction) {
+                    debug_println!("\t\tNew position {} is valid", position_after_direction);
+                    position = position_after_direction;
+                } else {
+                    debug_println!("\t\tNew position {} is NOT valid", position_after_direction);
+                }
+            } else {
+                debug_println!("\t\tCannot move position {} {:?}", position, direction);
+            }
+            let Some(position_after_fall) = position.fall() else {
+                debug_println!("\t\tPosition {} cannot fall (presumably on the floor)", position);
+                break;
+            };
+            debug_println!("\t\tAfter falling, new position is {}", position_after_fall);
+            if self.is_valid_position(block_offsets, position_after_fall) {
+                debug_println!(
+                    "\t\tAfter falling, new position {} is valid",
+                    position_after_fall
+                );
+                position = position_after_fall;
+            } else {
+                debug_println!(
+                    "\t\tAfter falling, new position {} is NOT valid, now settled",
+                    position_after_fall
+                );
+                break;
+            }
+        }
+
+        debug_println!("Now settled at {}", position);
+        for offset in block_offsets {
+            debug_println!("\tOffset: {}", offset);
+            let Position { row, column } = position + offset;
+            let row_index = row;
+            debug_println!("\t\tNew position: ({},{})", row, column);
+            let row = self.get_row_mut(row);
+            debug_println!("\t\tBefore, row {}: {:?}", row_index, row);
+            row[column as usize] = Cell::Rock;
+            debug_println!("\t\tAfter,  row {}: {:?}", row_index, row);
+        }
+
         position
     }
 
@@ -240,18 +367,24 @@ impl Chamber {
             .map(|top_row| top_row + INIT_DIST_FROM_TOP)
             .unwrap_or(INIT_DIST_FROM_TOP - 1);
         let column = INIT_DIST_FROM_LEFT;
-        Position { row, column }
+        Position {
+            row: row as isize,
+            column: column as isize,
+        }
     }
 
     fn is_valid_position(&self, block_offsets: &BlockOffsets, position: Position) -> bool {
         for offset in block_offsets {
             let Position { row, column } = position + offset;
+            if row < 0 || column < 0 {
+                return false;
+            }
             let row_index = row;
-            let Some(row) = self.cells.get(row) else {
+            let Some(row) = self.cells.get(row as usize) else {
                 debug_println!("\t\t\tNo row for new position ({},{})", row, column);
                 return true;
             };
-            let Some(cell) = row.get(column) else {
+            let Some(cell) = row.get(column as usize) else {
                 debug_println!("\t\t\tNo cell for new position ({},{})", row_index, column);
                 return false;
             };
@@ -268,13 +401,15 @@ impl Chamber {
         true
     }
 
-    fn get_row_mut(&mut self, row_index: usize) -> &mut [Cell; CHAMBER_WIDTH] {
+    fn get_row_mut(&mut self, row_index: isize) -> &mut [Cell; CHAMBER_WIDTH] {
         // loop {
         //     if let Some(row) = self.cells.get_mut(row_index) {
         //         return row;
         //     }
         //     self.cells.push_back([Cell::Empty; CHAMBER_WIDTH]);
         // }
+        assert!(row_index >= 0);
+        let row_index = row_index as usize;
         while self.cells.len() <= row_index {
             self.cells.push_back([Cell::Empty; CHAMBER_WIDTH]);
         }
@@ -315,7 +450,7 @@ impl Position {
         let Position { row, column } = self;
         let column = match direction {
             Direction::Left => column.checked_sub(1)?,
-            Direction::Right => Some(column + 1).filter(|c| *c < CHAMBER_WIDTH)?,
+            Direction::Right => Some(column + 1).filter(|c| *c < CHAMBER_WIDTH as isize)?,
         };
         Some(Position { row, column })
     }
@@ -346,6 +481,17 @@ impl Add<&'_ PositionOffset> for Position {
     }
 }
 
+impl Sub for Position {
+    type Output = PositionOffset;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        PositionOffset {
+            row_offset: rhs.row - self.row,
+            column_offset: rhs.column - self.column,
+        }
+    }
+}
+
 fn blocks_to_offsets(blocks: &[[&str; 4]]) -> Vec<BlockOffsets> {
     blocks
         .iter()
@@ -358,12 +504,12 @@ fn block_to_offsets(block: [&str; 4]) -> BlockOffsets {
         .iter()
         .rev()
         .enumerate()
-        .flat_map(move |(row_index, text)| block_line_to_offests(row_index, text))
+        .flat_map(move |(row_index, text)| block_line_to_offests(row_index as isize, text))
         .collect()
 }
 
 fn block_line_to_offests(
-    offset_row: usize,
+    offset_row: isize,
     line: &str,
 ) -> impl Iterator<Item = PositionOffset> + '_ {
     line.chars()
@@ -371,7 +517,7 @@ fn block_line_to_offests(
         .filter(move |(_, c)| *c == '#')
         .map(move |(offset_column, _)| PositionOffset {
             row_offset: offset_row,
-            column_offset: offset_column,
+            column_offset: offset_column as isize,
         })
 }
 
@@ -407,14 +553,10 @@ struct SliceCycle<'a, T> {
 }
 
 impl<'a, T> SliceCycle<'a, T> {
-    fn next(&mut self) -> (usize, &'a T) {
-        let result = (self.index, &self.slice[self.index]);
+    fn next(&mut self) -> &'a T {
+        let result = &self.slice[self.index];
         self.index = (self.index + 1) % self.slice.len();
         result
-    }
-
-    fn peek(&mut self) -> (usize, &'a T) {
-        (self.index, &self.slice[self.index])
     }
 }
 
@@ -433,7 +575,7 @@ impl<T, const N: usize> SliceExt<T> for [T; N] {
 }
 
 impl<'a, T> Iterator for SliceCycle<'a, T> {
-    type Item = (usize, &'a T);
+    type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
         Some(self.next())
@@ -470,15 +612,15 @@ mod test {
     fn test_slice_cycle() {
         let array = [5, 10, 15];
         let mut iter = array.cycle();
-        assert_eq!((0, &5), iter.next());
-        assert_eq!((1, &10), iter.next());
-        assert_eq!((2, &15), iter.next());
-        assert_eq!((0, &5), iter.next());
-        assert_eq!((1, &10), iter.next());
-        assert_eq!((2, &15), iter.next());
-        assert_eq!((0, &5), iter.next());
+        assert_eq!(&5, iter.next());
+        assert_eq!(&10, iter.next());
+        assert_eq!(&15, iter.next());
+        assert_eq!(&5, iter.next());
+        assert_eq!(&10, iter.next());
+        assert_eq!(&15, iter.next());
+        assert_eq!(&5, iter.next());
         for _ in 0..100 {
-            assert_eq!(0, iter.next().1 % 5);
+            assert_eq!(0, iter.next() % 5);
         }
     }
 
