@@ -4,9 +4,9 @@ use std::iter;
 use std::ops::{Add, Sub};
 
 use crate::days::{Day, Debug, Example, Part};
-use crate::{debug_print, debug_println};
+use crate::{debug_dbg, debug_print, debug_println};
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 
 pub struct Day17;
 
@@ -29,14 +29,15 @@ impl Day17 {
         let directions = parse_directions(&self.read_file(example)).unwrap();
         let mut chamber = Chamber::default();
         let blocks_offsets = blocks_to_offsets(&BLOCKS);
-        chamber.calc_tower_height(&blocks_offsets, &directions, NUM_ROCKS)
+        chamber.calc_tower_height2(&blocks_offsets, &directions, NUM_ROCKS)
+        // chamber.calc_tower_height(&blocks_offsets, &directions, NUM_ROCKS)
     }
 
     fn part2(&self, example: Example, _debug: Debug) -> usize {
         let directions = parse_directions(&self.read_file(example)).unwrap();
         let mut chamber = Chamber::default();
         let blocks_offsets = blocks_to_offsets(&BLOCKS);
-        chamber.calc_tower_height2(&blocks_offsets, &directions, NUM_ROCKS)
+        chamber.calc_tower_height2(&blocks_offsets, &directions, NUM_ROCKS2)
     }
 }
 
@@ -44,7 +45,9 @@ const CHAMBER_WIDTH: usize = 7;
 const INIT_DIST_FROM_LEFT: usize = 2;
 const INIT_DIST_FROM_TOP: usize = 4;
 const NUM_ROCKS: usize = 2022;
-const MIN_IDENTICAL_COUNT: usize = 20;
+const NUM_ROCKS2: usize = 1000000000000;
+// const MIN_IDENTICAL_COUNT: usize = 20;
+const MIN_IDENTICAL_COUNT: usize = 4;
 
 #[derive(Debug, Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 enum Direction {
@@ -136,15 +139,15 @@ impl Chamber {
         let mut direction_index = 0;
         let mut last_dropped_offsets = HashMap::new();
         let mut identical_count = 0;
-        let mut cycle_start_position = Position { row: 0, column: 0 };
         let mut previous_dropped_position =
             self.drop_block2(&blocks_offsets[0], &directions, &mut direction_index);
-        let mut total_index = 1;
-        let (cycle_end_position, cycle_len) = loop {
-            if total_index >= num_blocks {
-                break (previous_dropped_position, 0);
-            }
+        let mut total_index = 0;
+        let (cycle_start_position, cycle_end_position, cycle_len) = loop {
             total_index += 1;
+            if total_index >= num_blocks {
+                debug_println!("Dropped {} blocks, done.", total_index);
+                return self.get_top_row_index().unwrap_or(0) + 1;
+            }
             if total_index > 2023 {
                 panic!();
             }
@@ -157,13 +160,13 @@ impl Chamber {
             let block_offsets = &blocks_offsets[block_index];
             let dropped_position =
                 self.drop_block2(block_offsets, &directions, &mut direction_index);
-            let dropped_offset = dropped_position - previous_dropped_position;
+            let dropped_info = dropped_position - previous_dropped_position;
             let key = (block_index, direction_index);
             debug_println!(
                 "Dropped position: {:?}, previous position: {:?}, offset: {:?}",
                 dropped_position,
                 previous_dropped_position,
-                dropped_offset
+                dropped_info
             );
             debug_println!(
                 "Last value for key {:?} was {:?}",
@@ -171,15 +174,14 @@ impl Chamber {
                 last_dropped_offsets.get(&key)
             );
             match last_dropped_offsets.get(&key) {
-                Some((offset, index)) if *offset == dropped_offset => {
-                    debug_println!("Offset matches: {:?}", dropped_offset);
+                Some((position, offset, index)) if *offset == dropped_info => {
+                    debug_println!("Offset matches: {:?}", dropped_info);
                     if identical_count == 0 {
                         debug_println!(
                             "\tInitializing cycle: {:?}, {:?}",
                             total_index,
                             dropped_position
                         );
-                        cycle_start_position = dropped_position;
                     } else {
                         debug_println!(
                             "\tIdentical count: {} -> {}",
@@ -190,7 +192,7 @@ impl Chamber {
                     identical_count += 1;
                     if identical_count >= MIN_IDENTICAL_COUNT {
                         debug_println!("Found {} identical drops in a row", identical_count);
-                        break (dropped_position, total_index - index);
+                        break (position, dropped_position, total_index - index);
                     }
                 }
                 _ => {
@@ -200,7 +202,7 @@ impl Chamber {
             }
 
             previous_dropped_position = dropped_position;
-            last_dropped_offsets.insert(key, (dropped_offset, total_index));
+            last_dropped_offsets.insert(key, (dropped_position, dropped_info, total_index));
             self.debug_print();
             debug_println!();
         };
@@ -208,29 +210,30 @@ impl Chamber {
         debug_println!();
 
         let cycle_height = cycle_end_position.row - cycle_start_position.row;
-        dbg!(total_index, cycle_len, cycle_end_position, cycle_start_position, cycle_height);
+        debug_dbg!(total_index, cycle_len, cycle_end_position, cycle_start_position, cycle_height);
 
         if cycle_len <= 0 {
             debug_println!(
                 "Cycle length is 0, returning top row index {:?}",
                 self.get_top_row_index()
             );
-            return self.get_top_row_index().unwrap();
+            return self.get_top_row_index().unwrap_or(0) + 1;
         }
 
-        let num_blocks_remaining = num_blocks - total_index;
+        let num_blocks_remaining = num_blocks - total_index - 1;
         let num_cycles = num_blocks_remaining / cycle_len;
         let num_blocks_after_cycles = num_blocks_remaining % cycle_len;
-        dbg!(num_blocks_remaining, num_cycles, num_blocks_after_cycles);
+        debug_dbg!(num_blocks_remaining, num_cycles, num_blocks_after_cycles);
         for _ in 0..num_blocks_after_cycles {
+            total_index += 1;
             let block_index = total_index % blocks_offsets.len();
             let block_offsets = &blocks_offsets[block_index];
-            total_index += 1;
             self.drop_block2(block_offsets, &directions, &mut direction_index);
         }
+        self.debug_print();
 
         // before cycle + (cycle * num_cycles) + after cycle
-        dbg!(
+        debug_dbg!(
             total_index,
             num_blocks,
             num_blocks_remaining,
@@ -242,9 +245,13 @@ impl Chamber {
             self.get_top_row_index(),
             cycle_end_position
         );
-        cycle_start_position.row as usize
+        if DEBUG {
+            let top = self.get_top_row_index().unwrap();
+            debug_dbg!(top, self.cells[top + 1], self.cells[top], self.cells[top - 1]);
+        }
+        cycle_end_position.row as usize
             + (cycle_height as usize * num_cycles)
-            + (self.get_top_row_index().unwrap() - cycle_end_position.row as usize)
+            + (self.get_top_row_index().unwrap_or(0) + 1 - cycle_end_position.row as usize)
     }
 
     fn drop_block(
@@ -426,8 +433,10 @@ impl Chamber {
     }
 
     fn debug_print(&self) {
-        for row in self.cells.iter().rev() {
-            debug_print!("|");
+        let num_digits = self.cells.len().to_string().chars().count();
+        for (i, row) in self.cells.iter().enumerate().rev() {
+            debug_print!("{:num_digits$} ({:num_digits$}) |", i, i + 1);
+            // debug_print!("|");
             for cell in row {
                 let c = match cell {
                     Cell::Rock => '#',
@@ -435,8 +444,12 @@ impl Chamber {
                 };
                 debug_print!("{}", c);
             }
-            debug_println!();
+            debug_println!("|");
         }
+        for _ in 0..(num_digits*2 + 3) {
+            debug_print!(" ");
+        }
+        debug_print!(" ");
         debug_print!("+");
         for _ in 0..CHAMBER_WIDTH {
             debug_print!("-");
@@ -636,11 +649,11 @@ mod test {
 
     #[test]
     fn test_examples_part2() {
-        // assert_eq!(0, Day17.part2(Example::Example, Debug::NotDebug));
+        assert_eq!(1514285714288, Day17.part2(Example::Example, Debug::NotDebug));
     }
 
     #[test]
     fn test_real_part2() {
-        // assert_eq!(0, Day17.part2(Example::Real, Debug::NotDebug));
+        assert_eq!(1577077363915, Day17.part2(Example::Real, Debug::NotDebug));
     }
 }

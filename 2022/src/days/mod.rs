@@ -120,3 +120,13 @@ macro_rules! debug_print {
         }
     }
 }
+
+#[macro_export]
+macro_rules! debug_dbg {
+    ($($tts:tt)*) => {
+        if (DEBUG) {
+            dbg!($($tts)*);
+        }
+    }
+}
+
