@@ -25,6 +25,42 @@ impl Day for Day23 {
     }
 }
 
+impl Day23 {
+    fn part1(&self, example: Example, _debug: Debug) -> usize {
+        let mut state = self.read_file(example).parse::<State>().unwrap();
+        debug_println!("Initial:");
+        state.debug_print();
+        debug_println!();
+        for round in 0..NUM_ROUNDS {
+            let (new_state, _) = state.step();
+            state = new_state;
+            debug_println!("== End of Round {} ==", round + 1);
+            state.debug_print();
+            debug_println!();
+        }
+        state.count_empty_tiles()
+    }
+
+    fn part2(&self, example: Example, _debug: Debug) -> usize {
+        let mut state = self.read_file(example).parse::<State>().unwrap();
+        debug_println!("Initial:");
+        state.debug_print();
+        debug_println!();
+        let mut round = 0;
+        loop {
+            let (new_state, change_status) = state.step();
+            if change_status == ChangeStatus::Unchanged {
+                return round + 1;
+            }
+            state = new_state;
+            debug_println!("== End of Round {} ==", round + 1);
+            state.debug_print();
+            debug_println!();
+            round += 1;
+        }
+    }
+}
+
 #[derive(Debug, Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct Position {
     row: isize,
@@ -50,8 +86,14 @@ enum Direction {
     East,
 }
 
+#[derive(Debug, Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+enum ChangeStatus {
+    Changed,
+    Unchanged,
+}
+
 impl State {
-    fn step(&self) -> Self {
+    fn step(&self) -> (Self, ChangeStatus) {
         let proposals = self.get_proposals();
         if DEBUG {
             debug_println!("Proposals:");
@@ -86,14 +128,20 @@ impl State {
         let max_row = max_row.max(self.min_row);
         let min_col = min_col.min(self.min_col);
         let max_col = max_col.max(self.min_col);
-        State {
+        let state = State {
             elf_positions,
             direction: self.direction.next(),
             min_row,
             max_row,
             min_col,
             max_col,
-        }
+        };
+        let change_status = if destination_counts.iter().any(|(_, count)| *count == 1) {
+            ChangeStatus::Changed
+        } else {
+            ChangeStatus::Unchanged
+        };
+        (state, change_status)
     }
 
     fn get_proposals(&self) -> Vec<(Position, Option<Position>)> {
@@ -277,26 +325,6 @@ impl FromStr for State {
     }
 }
 
-impl Day23 {
-    fn part1(&self, example: Example, _debug: Debug) -> usize {
-        let mut state = self.read_file(example).parse::<State>().unwrap();
-        debug_println!("Initial:");
-        state.debug_print();
-        debug_println!();
-        for round in 0..NUM_ROUNDS {
-            state = state.step();
-            debug_println!("== End of Round {} ==", round + 1);
-            state.debug_print();
-            debug_println!();
-        }
-        state.count_empty_tiles()
-    }
-
-    fn part2(&self, _example: Example, _debug: Debug) -> usize {
-        todo!()
-    }
-}
-
 const NUM_ROUNDS: usize = 10;
 
 #[cfg(test)]
@@ -372,7 +400,8 @@ mod test {
         state.debug_print();
         debug_println!();
         for next_state in next_states {
-            state = state.step();
+            let (new_state, _) = state.step();
+            state = new_state;
             debug_println!("=====");
             debug_println!();
             debug_println!("Actual:");
@@ -398,12 +427,12 @@ mod test {
 
     #[test]
     fn test_examples_part2() {
-        // assert_eq!(0, Day23.part2(Example::Example, Debug::NotDebug));
+        assert_eq!(20, Day23.part2(Example::Example, Debug::NotDebug));
     }
 
     #[test]
     fn test_real_part2() {
-        // assert_eq!(0, Day23.part2(Example::Real, Debug::NotDebug));
+        assert_eq!(984, Day23.part2(Example::Real, Debug::NotDebug));
     }
 
     fn assert_elf_positions_match(state1: &State, state2: &State) {
