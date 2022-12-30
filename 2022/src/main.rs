@@ -1,5 +1,6 @@
 extern crate core;
-#[macro_use] extern crate enum_ordinalize;
+#[macro_use]
+extern crate enum_ordinalize;
 
 use clap::Parser;
 
@@ -7,7 +8,7 @@ use days::*;
 
 mod days;
 
-const DEFAULT_DAY: u32 = 23;
+const DEFAULT_DAY: u32 = 24;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -64,6 +65,7 @@ fn get_day(day_num: u32) -> Option<Box<dyn Day>> {
         21 => Box::new(Day21),
         22 => Box::new(Day22),
         23 => Box::new(Day23),
+        24 => Box::new(Day24),
         _ => return None,
     })
 }
