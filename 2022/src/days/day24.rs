@@ -36,8 +36,25 @@ impl Day24 {
         Solver::find_min_path_len(state, start, end)
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> usize {
-        todo!()
+    fn part2(&self, example: Example, _debug: Debug) -> usize {
+        let state = self.read_file(example).parse::<State>().unwrap();
+        let start = state.find_start().unwrap();
+        let end = state.find_end().unwrap();
+        let mut solver = Solver::new(state, start, end);
+        while !solver.accessible.contains(&end) {
+            solver = solver.step();
+        }
+        solver.accessible.clear();
+        solver.accessible.insert(end);
+        while !solver.accessible.contains(&start) {
+            solver = solver.step();
+        }
+        solver.accessible.clear();
+        solver.accessible.insert(start);
+        while !solver.accessible.contains(&end) {
+            solver = solver.step();
+        }
+        solver.round
     }
 }
 
@@ -82,7 +99,7 @@ type Index = (usize, usize);
 impl Solver {
     pub fn find_min_path_len(state: State, start: Index, end: Index) -> usize {
         let mut solver = Solver::new(state, start, end);
-        while !solver.is_start_end_connected() {
+        while !solver.accessible.contains(&end) {
             solver = solver.step();
         }
         solver.round
@@ -107,12 +124,13 @@ impl Solver {
             .iter()
             .copied()
             .flat_map(|index| state.accessible_from(index))
-            .collect();
+            .collect::<HashSet<_>>();
+        debug_println!("Accessible count: {}", accessible.len());
         Solver {
             state,
             round,
             accessible,
-            end: self.end,
+            ..*self
         }
     }
 
@@ -134,7 +152,7 @@ impl State {
             Array2D::from_iter_row_major(iter, self.cells.num_rows(), self.cells.num_columns())
                 .unwrap();
         let mut state = State { cells };
-        state.step_from(&self);
+        state.step_from(self);
         state
     }
 
@@ -210,7 +228,7 @@ impl State {
     }
 
     fn step_index_up(&self, (row, col): Index) -> Index {
-        if row <= 0 {
+        if row == 0 {
             (self.cells.num_rows() - 1, col)
         } else {
             (row - 1, col)
@@ -234,7 +252,7 @@ impl State {
     }
 
     fn step_index_left(&self, (row, col): Index) -> Index {
-        if col <= 0 {
+        if col == 0 {
             (row, self.cells.num_columns() - 1)
         } else {
             (row, col - 1)
@@ -259,12 +277,6 @@ impl State {
         for line in self.debug_lines() {
             debug_println!("{}", line);
         }
-        // for row in self.cells.rows_iter() {
-        //     for cell in row {
-        //         debug_print!("{}", cell);
-        //     }
-        //     debug_println!();
-        // }
     }
 }
 
@@ -504,11 +516,11 @@ mod test {
 
     #[test]
     fn test_examples_part2() {
-        // assert_eq!(0, Day24.part2(Example::Example, Debug::NotDebug));
+        assert_eq!(54, Day24.part2(Example::Example, Debug::NotDebug));
     }
 
     #[test]
     fn test_real_part2() {
-        // assert_eq!(0, Day24.part2(Example::Real, Debug::NotDebug));
+        assert_eq!(942, Day24.part2(Example::Real, Debug::NotDebug));
     }
 }
