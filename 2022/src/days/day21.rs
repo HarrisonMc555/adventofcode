@@ -147,7 +147,11 @@ fn find_required_value(
     };
     debug_println!("Final goal is {}", goal_number);
     for (f, value) in stack.into_iter().rev() {
-        debug_println!("Applying inverse operation to goal {} and value {} gives us ", goal_number, value);
+        debug_println!(
+            "Applying inverse operation to goal {} and value {} gives us ",
+            goal_number,
+            value
+        );
         goal_number = f(goal_number, value);
         debug_println!("{}", goal_number);
     }

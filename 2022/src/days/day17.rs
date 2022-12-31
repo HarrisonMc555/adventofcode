@@ -209,7 +209,13 @@ impl Chamber {
         debug_println!();
 
         let cycle_height = cycle_end_position.row - cycle_start_position.row;
-        debug_dbg!(total_index, cycle_len, cycle_end_position, cycle_start_position, cycle_height);
+        debug_dbg!(
+            total_index,
+            cycle_len,
+            cycle_end_position,
+            cycle_start_position,
+            cycle_height
+        );
 
         let num_blocks_remaining = num_blocks - total_index - 1;
         let num_cycles = num_blocks_remaining / cycle_len;
@@ -238,7 +244,12 @@ impl Chamber {
         );
         if DEBUG {
             let top = self.get_top_row_index().unwrap();
-            debug_dbg!(top, self.cells[top + 1], self.cells[top], self.cells[top - 1]);
+            debug_dbg!(
+                top,
+                self.cells[top + 1],
+                self.cells[top],
+                self.cells[top - 1]
+            );
         }
         cycle_end_position.row as usize
             + (cycle_height as usize * num_cycles)
@@ -437,7 +448,7 @@ impl Chamber {
             }
             debug_println!("|");
         }
-        for _ in 0..(num_digits*2 + 3) {
+        for _ in 0..(num_digits * 2 + 3) {
             debug_print!(" ");
         }
         debug_print!(" ");
@@ -640,7 +651,10 @@ mod test {
 
     #[test]
     fn test_examples_part2() {
-        assert_eq!(1514285714288, Day17.part2(Example::Example, Debug::NotDebug));
+        assert_eq!(
+            1514285714288,
+            Day17.part2(Example::Example, Debug::NotDebug)
+        );
     }
 
     #[test]

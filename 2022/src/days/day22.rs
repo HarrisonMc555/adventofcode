@@ -193,7 +193,12 @@ struct FaceOrientation {
 fn simulate2(board: Board, commands: &Commands, square_width: isize) -> Option<State2> {
     let mut state = State2::new(board, square_width)?;
     for (i, command) in commands.iter().enumerate() {
-        debug_println!("Running command {}/{}: {:?}", i + 1, commands.len(), command);
+        debug_println!(
+            "Running command {}/{}: {:?}",
+            i + 1,
+            commands.len(),
+            command
+        );
         state.run_command(*command)
     }
     Some(state)
@@ -392,14 +397,28 @@ fn create_face_connection(
     let (next_index, next_up) = face_orientations.get(&rotated.normal)?;
     let mut next_orientation: Orientation = orientation;
     let mut rotated_up = rotated.up;
-    debug_println!("Leaving square {:?} @ {:?} going {:?}", index, face_orientation, orientation);
+    debug_println!(
+        "Leaving square {:?} @ {:?} going {:?}",
+        index,
+        face_orientation,
+        orientation
+    );
     debug_println!("Next square: {:?}, next up: {:?}", next_index, next_up);
     while rotated_up != *next_up {
-        debug_println!("\tRotated up {:?} does NOT match next up {:?}", rotated_up, next_up);
+        debug_println!(
+            "\tRotated up {:?} does NOT match next up {:?}",
+            rotated_up,
+            next_up
+        );
         rotated_up = rotated_up.clockwise_around(rotated.normal)?;
         next_orientation = next_orientation.counter_clockwise();
     }
-    debug_println!("Rotated up {:?} matches next up {:?}, next orientation: {:?}", rotated_up, next_up, next_orientation);
+    debug_println!(
+        "Rotated up {:?} matches next up {:?}, next orientation: {:?}",
+        rotated_up,
+        next_up,
+        next_orientation
+    );
     Some(((index, orientation), (*next_index, next_orientation)))
 }
 
