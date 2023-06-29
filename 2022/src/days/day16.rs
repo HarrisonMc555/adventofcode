@@ -72,6 +72,17 @@ struct State {
     start_minutes: usize,
 }
 
+#[derive(Debug, Clone)]
+struct State2 {
+    remaining_valves: Vec<ValveID>,
+    cur_total_pressure: usize,
+    cur_pressure_per_minute: usize,
+    remaining_minutes: usize,
+    searcher_states: Vec<(ValveID, usize)>,
+    #[cfg(test)]
+    start_minutes: usize,
+}
+
 impl State {
     pub fn find_max_flow_rate(info: &Info, start_valve: ValveID, num_minutes: usize) -> usize {
         let state = State {
@@ -94,7 +105,12 @@ impl State {
         let prefix = "  ".repeat(self.start_minutes - self.remaining_minutes);
         #[cfg(not(test))]
         let prefix = "".to_string();
-        debug_println!("{}At {} with {} minutes left.", prefix, self.cur_valve, self.remaining_minutes);
+        debug_println!(
+            "{}At {} with {} minutes left.",
+            prefix,
+            self.cur_valve,
+            self.remaining_minutes
+        );
         debug_print!("{}Old best: {}, new best: ", prefix, best);
         let mut best = best
             .max(self.cur_total_pressure + self.cur_pressure_per_minute * self.remaining_minutes);
@@ -144,9 +160,201 @@ impl State {
                 #[cfg(test)]
                 start_minutes: self.start_minutes,
             };
-            debug_println!("{}Visiting {} next, new state: {:?}", prefix, dest_valve_id, next_state);
+            debug_println!(
+                "{}Visiting {} next, new state: {:?}",
+                prefix,
+                dest_valve_id,
+                next_state
+            );
             best = best.max(next_state.find_max_flow_rate_helper(info, best));
         }
+        best
+    }
+
+    fn theoretical_max(&self, info: &Info) -> usize {
+        let max_num_open = self.remaining_minutes / 2;
+        let flow_rates = self
+            .remaining_valves
+            .iter()
+            .map(|valve_id| info.valve_map[valve_id].flow_rate)
+            .take(max_num_open);
+        let mut total_pressure = self.cur_total_pressure;
+        let mut pressure_per_minute = self.cur_pressure_per_minute;
+        let mut remaining_minutes = self.remaining_minutes;
+        for flow_rate in flow_rates {
+            if remaining_minutes <= 1 {
+                break;
+            }
+            total_pressure += pressure_per_minute * 2;
+            pressure_per_minute += flow_rate;
+            remaining_minutes -= 2;
+        }
+        total_pressure += pressure_per_minute * remaining_minutes;
+        total_pressure
+    }
+}
+
+impl State2 {
+    pub fn find_max_flow_rate(
+        info: &Info,
+        start_valves: Vec<ValveID>,
+        num_minutes: usize,
+    ) -> usize {
+        let searcher_states = start_valves
+            .into_iter()
+            .map(|valve_id| (valve_id, 0))
+            .collect();
+        let state = State2 {
+            remaining_valves: info.highest_pressure_valves.clone(),
+            cur_total_pressure: 0,
+            cur_pressure_per_minute: 0,
+            remaining_minutes: num_minutes,
+            searcher_states,
+            #[cfg(test)]
+            start_minutes: num_minutes,
+        };
+        debug_println!("+--------------------------------------+");
+        debug_println!("| Finding max flow rate for {: >2} minutes |", num_minutes);
+        debug_println!("+--------------------------------------+");
+        state.find_max_flow_rate_helper(info, 0)
+    }
+
+    fn find_max_flow_rate_helper(self, info: &Info, best: usize) -> usize {
+        #[cfg(test)]
+        let prefix = "  ".repeat(self.start_minutes - self.remaining_minutes);
+        #[cfg(not(test))]
+        let prefix = "".to_string();
+        debug_println!(
+            "{}{} minutes left, searchers: {:?}.",
+            prefix,
+            self.remaining_minutes,
+            self.searcher_states,
+        );
+        debug_print!("{}Old best: {}, new best: ", prefix, best);
+        let mut best = best
+            .max(self.cur_total_pressure + self.cur_pressure_per_minute * self.remaining_minutes);
+        debug_println!("{}", best);
+        if self.remaining_minutes == 0 {
+            debug_println!("{}Done, returning best: {}", prefix, best);
+            return best;
+        }
+        if self.theoretical_max(info) <= best {
+            debug_println!(
+                "{}Theoretical max is {}, quitting early",
+                prefix,
+                self.theoretical_max(info)
+            );
+            return best;
+        }
+
+        let mut min_time = None;
+        for (cur_valve, num_minutes) in self.searcher_states.iter().copied() {
+            if num_minutes > 0 {
+                min_time = Some(num_minutes.min(min_time.unwrap_or(num_minutes)));
+                continue;
+            }
+
+
+        }
+
+        for dest_valve_id in self.remaining_valves.iter().copied() {
+            let distance = info.distances[&self.cur_valve1][&dest_valve_id];
+            let num_minutes_required = distance + 1;
+            if self.remaining_minutes < num_minutes_required + 1 {
+                debug_println!(
+                    "{}Not enough time to visit {} and get something out of it (requires {} minutes, we only have {} \
+                    left)",
+                    prefix,
+                    dest_valve_id,
+                    num_minutes_required,
+                    self.remaining_minutes
+                );
+                continue;
+            }
+            let dest_valve_pressure = info.valve_map[&dest_valve_id].flow_rate;
+            let next_valves = self
+                .remaining_valves
+                .iter()
+                .copied()
+                .filter(|valve_id| *valve_id != dest_valve_id)
+                .collect();
+
+            let next_state = State2 {
+                remaining_valves: next_valves,
+                cur_total_pressure: self.cur_total_pressure
+                    + self.cur_pressure_per_minute * num_minutes_required,
+                cur_pressure_per_minute: self.cur_pressure_per_minute + dest_valve_pressure,
+                remaining_minutes: self.remaining_minutes - num_minutes_required,
+                cur_valve1: dest_valve_id,
+                cur_valve2: dest_valve_id,
+                #[cfg(test)]
+                start_minutes: self.start_minutes,
+            };
+            debug_println!(
+                "{}Visiting {} next, new state: {:?}",
+                prefix,
+                dest_valve_id,
+                next_state
+            );
+            best = best.max(next_state.find_max_flow_rate_helper(info, best));
+        }
+        best
+    }
+
+    fn inner(&self, info: &Info, best: usize, searcher_index: usize) -> usize {
+        #[cfg(test)]
+            let prefix = "  ".repeat(self.start_minutes - self.remaining_minutes);
+        #[cfg(not(test))]
+            let prefix = "".to_string();
+
+        let (cur_valve, cur_minutes) = self.searcher_states[searcher_index];
+        debug_assert_eq!(0, cur_minutes);
+
+        for dest_valve_id in self.remaining_valves.iter().copied() {
+
+            let distance = info.distances[&cur_valve][&dest_valve_id];
+            let num_minutes_required = distance + 1;
+            if self.remaining_minutes < num_minutes_required + 1 {
+                debug_println!(
+                    "{}Not enough time to visit {} and get something out of it (requires {} minutes, we only have {} \
+                    left)",
+                    prefix,
+                    dest_valve_id,
+                    num_minutes_required,
+                    self.remaining_minutes
+                );
+                continue;
+            }
+            let dest_valve_pressure = info.valve_map[&dest_valve_id].flow_rate;
+            let next_valves = self
+                .remaining_valves
+                .iter()
+                .copied()
+                .filter(|valve_id| *valve_id != dest_valve_id)
+                .collect();
+            let mut searcher_states = self.searcher_states.clone();
+            searcher_states[searcher_index].1 = todo!();
+
+            let next_state = State2 {
+                remaining_valves: next_valves,
+                cur_total_pressure: self.cur_total_pressure
+                    + self.cur_pressure_per_minute * num_minutes_required,
+                cur_pressure_per_minute: self.cur_pressure_per_minute + dest_valve_pressure,
+                remaining_minutes: self.remaining_minutes - num_minutes_required,
+                cur_valve: dest_valve_id,
+                #[cfg(test)]
+                start_minutes: self.start_minutes,
+            };
+            debug_println!(
+                "{}Visiting {} next, new state: {:?}",
+                prefix,
+                dest_valve_id,
+                next_state
+            );
+            best = best.max(next_state.find_max_flow_rate_helper(info, best));
+
+        }
+
         best
     }
 
