@@ -242,7 +242,7 @@ impl Info {
             .iter()
             .filter(|(_, valve)| valve.flow_rate > 0)
             .collect::<Vec<_>>();
-        valves.sort_unstable_by(|(_, valve1), (_, valve2)| valve2.flow_rate.cmp(&valve1.flow_rate));
+        valves.sort_unstable_by_key(|(_, valve)| std::cmp::Reverse(valve.flow_rate));
         valves.into_iter().map(|(valve_id, _)| *valve_id).collect()
     }
 }
