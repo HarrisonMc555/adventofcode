@@ -188,23 +188,23 @@ mod test {
 
     #[test]
     fn test_contains_repeated_match() {
-        assert_eq!(true, contains_repeated_match("", 0, &b'a'));
-        assert_eq!(false, contains_repeated_match("", 1, &b'a'));
-        assert_eq!(true, contains_repeated_match("a", 0, &b'a'));
-        assert_eq!(true, contains_repeated_match("a", 1, &b'a'));
-        assert_eq!(false, contains_repeated_match("a", 2, &b'a'));
-        assert_eq!(false, contains_repeated_match("bbb", 1, &b'a'));
-        assert_eq!(false, contains_repeated_match("bbb", 2, &b'a'));
-        assert_eq!(true, contains_repeated_match("bbb", 1, &b'b'));
-        assert_eq!(true, contains_repeated_match("bbb", 2, &b'b'));
-        assert_eq!(true, contains_repeated_match("bbb", 3, &b'b'));
-        assert_eq!(false, contains_repeated_match("bbb", 4, &b'b'));
-        assert_eq!(true, contains_repeated_match("ababa", 1, &b'a'));
-        assert_eq!(true, contains_repeated_match("ababa", 1, &b'b'));
-        assert_eq!(false, contains_repeated_match("ababa", 2, &b'a'));
-        assert_eq!(false, contains_repeated_match("ababa", 2, &b'b'));
-        assert_eq!(false, contains_repeated_match("abba", 2, &b'a'));
-        assert_eq!(true, contains_repeated_match("abba", 2, &b'b'));
+        assert!(contains_repeated_match("", 0, &b'a'));
+        assert!(!contains_repeated_match("", 1, &b'a'));
+        assert!(contains_repeated_match("a", 0, &b'a'));
+        assert!(contains_repeated_match("a", 1, &b'a'));
+        assert!(!contains_repeated_match("a", 2, &b'a'));
+        assert!(!contains_repeated_match("bbb", 1, &b'a'));
+        assert!(!contains_repeated_match("bbb", 2, &b'a'));
+        assert!(contains_repeated_match("bbb", 1, &b'b'));
+        assert!(contains_repeated_match("bbb", 2, &b'b'));
+        assert!(contains_repeated_match("bbb", 3, &b'b'));
+        assert!(!contains_repeated_match("bbb", 4, &b'b'));
+        assert!(contains_repeated_match("ababa", 1, &b'a'));
+        assert!(contains_repeated_match("ababa", 1, &b'b'));
+        assert!(!contains_repeated_match("ababa", 2, &b'a'));
+        assert!(!contains_repeated_match("ababa", 2, &b'b'));
+        assert!(!contains_repeated_match("abba", 2, &b'a'));
+        assert!(contains_repeated_match("abba", 2, &b'b'));
     }
 
     #[test]

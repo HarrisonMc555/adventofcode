@@ -127,7 +127,7 @@ fn get_password_index_char(digest: Digest) -> Option<(usize, char)> {
     let digest_string = format!("{:x}", digest);
     let mut rest = digest_string.strip_prefix(LEADING_ZEROS_PREFIX)?.chars();
     let position_char = rest.next().unwrap();
-    if !matches!(position_char, '0'..='9') {
+    if !position_char.is_ascii_digit() {
         return None;
     }
     let position = (position_char as u8 - b'0') as usize;

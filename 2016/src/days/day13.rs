@@ -153,7 +153,7 @@ impl Index {
             x.checked_sub(1).map(|x| Index::new(x, y)),
         ]
         .into_iter()
-        .filter_map(std::convert::identity)
+        .flatten()
     }
 }
 
