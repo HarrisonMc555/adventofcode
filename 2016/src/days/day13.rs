@@ -157,8 +157,6 @@ impl Index {
     }
 }
 
-
-
 fn is_even(x: u32) -> bool {
     x % 2 == 0
 }

@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use lazy_static::lazy_static;
 use regex::{Captures, Regex};
+use std::collections::HashMap;
 
 use crate::days::{Day, Debug, Example, Part};
 
@@ -126,13 +126,16 @@ impl State {
     fn inc(&mut self, register: Register) -> NextIndex {
         self.add(register, 1)
     }
-    
+
     fn dec(&mut self, register: Register) -> NextIndex {
         self.add(register, -1)
     }
 
     fn add(&mut self, register: Register, value: Value) -> NextIndex {
-        *self.registers.entry(register).or_insert(Self::DEFAULT_VALUE) += value;
+        *self
+            .registers
+            .entry(register)
+            .or_insert(Self::DEFAULT_VALUE) += value;
         NextIndex::Normal
     }
 
@@ -152,7 +155,10 @@ impl State {
     }
 
     fn register_value(&self, register: Register) -> Value {
-        self.registers.get(&register).copied().unwrap_or(Self::DEFAULT_VALUE)
+        self.registers
+            .get(&register)
+            .copied()
+            .unwrap_or(Self::DEFAULT_VALUE)
     }
 }
 
@@ -160,7 +166,7 @@ impl Instruction {
     fn parse_lines(instructions: &str) -> Option<Vec<Instruction>> {
         instructions.lines().map(Instruction::parse).collect()
     }
-    
+
     fn parse(line: &str) -> Option<Self> {
         lazy_static! {
             static ref CPY_REG: Regex = Regex::new(r"cpy ([a-z]) ([a-z])").unwrap();
