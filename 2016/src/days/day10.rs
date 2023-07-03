@@ -4,14 +4,6 @@ use regex::{Captures, Regex};
 use std::collections::{HashMap, VecDeque};
 
 const DEBUG: bool = false;
-#[macro_export]
-macro_rules! debug_println {
-    ($($tts:tt)*) => {
-        if (DEBUG) {
-            println!($($tts)*);
-        }
-    }
-}
 
 pub struct Day10;
 
