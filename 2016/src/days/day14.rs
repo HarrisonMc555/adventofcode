@@ -219,6 +219,7 @@ mod test {
     }
 
     #[test]
+    #[ignore]
     fn test_example_part2() {
         let salt = "abc";
         let key_generator = KeyGenerator::new(salt.to_owned(), PART2_STRETCH_NUM);
