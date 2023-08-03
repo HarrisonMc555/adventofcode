@@ -20,8 +20,10 @@ macro_rules! debug_print {
 use std::fs;
 
 pub mod day01;
+pub mod day02;
 
 pub use day01::Day01;
+pub use day02::Day02;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Part {
