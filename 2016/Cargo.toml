@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 array2d = "0.3.0"
-clap = { version = "4.0.29", features = ["derive"] }
+clap = { version = "4.3.19", features = ["derive"] }
 counter = "0.5.7"
 itertools = "0.11.0"
 lazy_static = "1.4.0"
