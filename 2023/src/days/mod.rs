@@ -93,27 +93,54 @@ impl From<Debug> for bool {
 
 #[macro_export]
 macro_rules! debug_println {
-    ($($tts:tt)*) => {
-        if (DEBUG) {
-            println!($($tts)*);
+    ($debug:expr) => {
+        if $debug.into() {
+            use std::io::Write;
+            println!();
+            std::io::stdout().flush().expect("Could not flush stdout");
         }
-    }
+    };
+    ($debug:expr, $($tts:tt)*) => {
+        if $debug.into() {
+            use std::io::Write;
+            println!($($tts)*);
+            std::io::stdout().flush().expect("Could not flush stdout");
+        }
+    };
 }
 
 #[macro_export]
 macro_rules! debug_print {
-    ($($tts:tt)*) => {
-        if (DEBUG) {
+    ($debug:expr) => {
+        if $debug.into() {
+            use std::io::Write;
+            print!();
+            std::io::stdout().flush().expect("Could not flush stdout");
+        }
+    };
+    ($debug:expr, $($tts:tt)*) => {
+        if $debug.into() {
+            use std::io::Write;
             print!($($tts)*);
+            std::io::stdout().flush().expect("Could not flush stdout");
         }
     }
 }
 
 #[macro_export]
 macro_rules! debug_dbg {
-    ($($tts:tt)*) => {
-        if (DEBUG) {
+    ($debug:expr) => {
+        if $debug.into() {
+            use std::io::Write;
+            dbg!();
+            std::io::stdout().flush().expect("Could not flush stdout");
+        }
+    };
+    ($debug:expr, $($tts:tt)*) => {
+        if $debug.into() {
+            use std::io::Write;
             dbg!($($tts)*);
+            std::io::stdout().flush().expect("Could not flush stdout");
         }
     }
 }
