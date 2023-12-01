@@ -73,6 +73,24 @@ impl From<bool> for Debug {
     }
 }
 
+impl From<Example> for bool {
+    fn from(example: Example) -> Self {
+        match example {
+            Example::Example => true,
+            Example::Real => false,
+        }
+    }
+}
+
+impl From<Debug> for bool {
+    fn from(debug: Debug) -> Self {
+        match debug {
+            Debug::Debug => true,
+            Debug::NotDebug => false,
+        }
+    }
+}
+
 #[macro_export]
 macro_rules! debug_println {
     ($($tts:tt)*) => {
