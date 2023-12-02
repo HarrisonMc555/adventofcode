@@ -25,8 +25,14 @@ impl Day for Day02 {
             .to_string()
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> String {
-        todo!()
+    fn part2(&self, example: Example, _debug: Debug) -> String {
+        parse_games(&self.read_file(Part::Part1, example))
+            .unwrap()
+            .into_iter()
+            .map(|game| game.minimum_possible_collection())
+            .map(Collection::power)
+            .sum::<u32>()
+            .to_string()
     }
 }
 
@@ -45,7 +51,7 @@ struct Game {
 #[derive(Debug, Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct GameId(u32);
 
-#[derive(Debug, Hash, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Hash, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct Collection {
     red: u32,
     green: u32,
@@ -71,11 +77,30 @@ impl Game {
             .iter()
             .all(|round| collection.is_superset_of(*round))
     }
+
+    pub fn minimum_possible_collection(&self) -> Collection {
+        self.rounds
+            .iter()
+            .copied()
+            .fold(Collection::default(), Collection::max_with)
+    }
 }
 
 impl Collection {
     pub fn is_superset_of(self, other: Collection) -> bool {
         self.red >= other.red && self.green >= other.green && self.blue >= other.blue
+    }
+
+    pub fn max_with(self, other: Collection) -> Collection {
+        Self {
+            red: self.red.max(other.red),
+            green: self.green.max(other.green),
+            blue: self.blue.max(other.blue),
+        }
+    }
+
+    pub fn power(self) -> u32 {
+        self.red * self.green * self.blue
     }
 }
 
@@ -213,11 +238,11 @@ mod test {
 
     #[test]
     fn test_examples_part2() {
-        // assert_eq!(0, Day2.part2(Example::Example, Debug::NotDebug));
+        assert_eq!("2286", Day02.part2(Example::Example, Debug::NotDebug));
     }
 
     #[test]
     fn test_real_part2() {
-        // assert_eq!(0, Day2.part2(Example::Real, Debug::NotDebug));
+        assert_eq!("84911", Day02.part2(Example::Real, Debug::NotDebug));
     }
 }
