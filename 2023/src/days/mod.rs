@@ -35,17 +35,25 @@ pub trait Day {
     }
     fn part1(&self, example: Example, debug: Debug) -> String;
     fn part2(&self, example: Example, debug: Debug) -> String;
-    fn read_file(&self, example: Example) -> String {
+    fn read_file(&self, part: Part, example: Example) -> String {
         let prefix = match example {
             Example::Real => "input",
             Example::Example => "example",
         };
+        let suffix = match part {
+            Part::Part1 => "1",
+            Part::Part2 => "2",
+        };
+        let filename_with_suffix = format!("static/{prefix}{:02}_part{suffix}.txt", self.number());
+        if let Ok(contents) = fs::read_to_string(filename_with_suffix) {
+            return contents;
+        }
         let filename = format!("static/{}{:02}.txt", prefix, self.number());
         fs::read_to_string(&filename)
             .unwrap_or_else(|e| panic!("Should have been able to read file {}: {:?}", filename, e))
     }
-    fn get_lines(&self, example: Example) -> Vec<String> {
-        self.read_file(example)
+    fn get_lines(&self, part: Part, example: Example) -> Vec<String> {
+        self.read_file(part, example)
             .trim()
             .lines()
             .map(str::to_owned)
