@@ -173,12 +173,12 @@ mod test {
     }
 
     #[test]
-    fn part2_example() {
+    fn test_examples_part2() {
         assert_eq!("281", Day01.part2(Example::Example, Debug::NotDebug))
     }
 
     #[test]
-    fn part2_real() {
+    fn test_real_part2() {
         assert_eq!("54770", Day01.part2(Example::Real, Debug::NotDebug))
     }
 }
