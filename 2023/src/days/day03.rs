@@ -1,5 +1,6 @@
 use crate::days::{Day, Debug, Example, Part};
 use array2d::Array2D;
+use std::collections::VecDeque;
 
 pub struct Day03;
 
@@ -14,8 +15,13 @@ impl Day for Day03 {
         get_part_numbers(&grid).into_iter().sum::<u32>().to_string()
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> String {
-        todo!()
+    fn part2(&self, example: Example, _debug: Debug) -> String {
+        let lines = Day03.get_lines(Part::Part1, example);
+        let grid = parse_grid(&lines).unwrap();
+        get_gears(&grid)
+            .map(|(num1, num2)| num1 * num2)
+            .sum::<u32>()
+            .to_string()
     }
 }
 
@@ -27,6 +33,8 @@ enum Cell {
 }
 
 const BASE: u32 = 10;
+const GEAR_CHAR: char = '*';
+const PART_NUMBERS_PER_GEAR: usize = 2;
 
 type Grid = Array2D<Cell>;
 
@@ -35,19 +43,20 @@ fn get_part_numbers(grid: &Grid) -> Vec<u32> {
     for (row, cells) in grid.rows_iter().enumerate() {
         let mut iter = cells.enumerate();
         while let Some((column, cell)) = iter.next() {
-            if let Some(digit) = cell.digit() {
-                let mut is_next_to_symbol = has_neighboring_symbol(grid, (row, column));
-                let mut number = digit;
-                for (column, cell) in iter.by_ref() {
-                    let Some(digit) = cell.digit() else { break };
-                    number *= BASE;
-                    number += digit;
-                    is_next_to_symbol =
-                        is_next_to_symbol || has_neighboring_symbol(grid, (row, column));
-                }
-                if is_next_to_symbol {
-                    part_numbers.push(number);
-                }
+            let Some(digit) = cell.digit() else {
+                continue;
+            };
+            let mut is_next_to_symbol = has_neighboring_symbol(grid, (row, column));
+            let mut number = digit;
+            for (column, cell) in iter.by_ref() {
+                let Some(digit) = cell.digit() else { break };
+                number *= BASE;
+                number += digit;
+                is_next_to_symbol =
+                    is_next_to_symbol || has_neighboring_symbol(grid, (row, column));
+            }
+            if is_next_to_symbol {
+                part_numbers.push(number);
             }
         }
     }
@@ -60,10 +69,6 @@ impl Cell {
             Self::Digit(digit) => Some(digit),
             _ => None,
         }
-    }
-
-    fn is_symbol(self) -> bool {
-        matches!(self, Self::Symbol(_))
     }
 }
 
@@ -90,14 +95,91 @@ fn has_neighboring_symbol(grid: &Grid, (row, column): (usize, usize)) -> bool {
         .collect::<Vec<_>>();
     for row in rows {
         for &column in columns.iter() {
-            if let Some(cell) = grid.get(row, column) {
-                if cell.is_symbol() {
-                    return true;
-                }
+            let Some(cell) = grid.get(row, column) else {
+                continue;
+            };
+            if matches!(cell, Cell::Symbol(_)) {
+                return true;
             }
         }
     }
     false
+}
+
+fn get_gears(grid: &Grid) -> impl Iterator<Item = (u32, u32)> + '_ {
+    grid.enumerate_row_major()
+        .filter_map(|(index, cell)| get_gear(grid, cell, index))
+}
+
+fn get_gear(grid: &Grid, cell: &Cell, (row, column): (usize, usize)) -> Option<(u32, u32)> {
+    let Cell::Symbol(GEAR_CHAR) = cell else {
+        return None;
+    };
+    let prev_row = row.checked_sub(1);
+    let next_row = if row + 1 >= grid.num_rows() {
+        None
+    } else {
+        Some(row + 1)
+    };
+    let prev_column = column.checked_sub(1);
+    let next_column = if column + 1 >= grid.num_columns() {
+        None
+    } else {
+        Some(column + 1)
+    };
+    let rows = [prev_row, Some(row), next_row]
+        .iter()
+        .filter_map(|r| *r)
+        .collect::<Vec<_>>();
+    let columns = [prev_column, Some(column), next_column]
+        .iter()
+        .filter_map(|r| *r)
+        .collect::<Vec<_>>();
+    let mut part_numbers = Vec::with_capacity(PART_NUMBERS_PER_GEAR);
+    let mut part_number_addresses = Vec::with_capacity(PART_NUMBERS_PER_GEAR);
+    for row in rows {
+        for &column in columns.iter() {
+            let Some((address, part_number)) = get_part_number(grid, (row, column)) else {
+                continue;
+            };
+            if part_number_addresses.contains(&address) {
+                continue;
+            }
+            if part_numbers.len() >= PART_NUMBERS_PER_GEAR {
+                return None;
+            }
+            part_numbers.push(part_number);
+            part_number_addresses.push(address);
+        }
+    }
+    match part_numbers[..] {
+        [num1, num2] => Some((num1, num2)),
+        _ => None,
+    }
+}
+
+fn get_part_number(grid: &Grid, (row, column): (usize, usize)) -> Option<((usize, usize), u32)> {
+    let Some(Cell::Digit(digit)) = grid.get(row, column) else {
+        return None;
+    };
+    let mut digits = VecDeque::new();
+    digits.push_back(digit);
+    let mut first_column = column;
+    for next_column in (0..column).rev() {
+        let Some(Cell::Digit(next_digit)) = grid.get(row, next_column) else {
+            break;
+        };
+        digits.push_front(next_digit);
+        first_column = next_column;
+    }
+    for next_column in (column + 1).. {
+        let Some(Cell::Digit(next_digit)) = grid.get(row, next_column) else {
+            break;
+        };
+        digits.push_back(next_digit);
+    }
+    let part_number = digits.iter().fold(0, |sum, &digit| sum * BASE + digit);
+    Some(((row, first_column), part_number))
 }
 
 fn parse_grid<T: AsRef<str>>(lines: &[T]) -> Option<Grid> {
@@ -145,7 +227,7 @@ mod test {
 
     #[test]
     fn test_examples_part2() {
-        // assert_eq!("0", Day03.part2(Example::Example, Debug::NotDebug));
+        assert_eq!("467835", Day03.part2(Example::Example, Debug::NotDebug));
     }
 
     #[test]
