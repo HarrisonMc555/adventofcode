@@ -21,8 +21,12 @@ impl Day for Day04 {
             .to_string()
     }
 
-    fn part2(&self, _example: Example, _debug: Debug) -> String {
-        todo!()
+    fn part2(&self, example: Example, _debug: Debug) -> String {
+        let cards = self.get_lines(Part::Part2, example)
+            .into_iter()
+            .map(|line| parse_card(&line).unwrap())
+            .collect::<Vec<_>>();
+        score_part2(&cards).unwrap().to_string()
     }
 }
 
@@ -49,6 +53,20 @@ impl Card {
             .filter(|num| winning_numbers.contains(num))
             .count()
     }
+}
+
+fn score_part2(cards: &[Card]) -> Option<usize> {
+    let mut counts = vec![1; cards.len()];
+    for (index, card) in cards.iter().enumerate() {
+        let count = counts.get(index).copied()?;
+        let num_matches = card.num_matches();
+        for offset in 1..=num_matches {
+            let next_index = index + offset;
+            let next_count = counts.get_mut(next_index)?;
+            *next_count += count
+        }
+    }
+    Some(counts.iter().sum())
 }
 
 fn parse_card(line: &str) -> Option<Card> {
@@ -97,14 +115,12 @@ mod test {
     }
 
     #[test]
-    #[ignore]
     fn test_examples_part2() {
-        assert_eq!("0", Day04.part2(Example::Example, Debug::NotDebug));
+        assert_eq!("30", Day04.part2(Example::Example, Debug::NotDebug));
     }
 
     #[test]
-    #[ignore]
     fn test_real_part2() {
-        assert_eq!("0", Day04.part2(Example::Real, Debug::NotDebug));
+        assert_eq!("6284877", Day04.part2(Example::Real, Debug::NotDebug));
     }
 }
