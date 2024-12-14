@@ -1,0 +1,9 @@
+[package]
+name = "adventofcode-2024"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5.23", features = ["derive"] }
+counter = "0.6.0"
+nom = "7.1.3"
