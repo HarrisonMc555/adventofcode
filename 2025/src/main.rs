@@ -43,6 +43,7 @@ fn get_day(day_num: u32) -> Option<Box<dyn Day>> {
         1 => Box::new(Day01),
         2 => Box::new(Day02),
         3 => Box::new(Day03),
+        4 => Box::new(Day04),
         _ => return None,
     })
 }
