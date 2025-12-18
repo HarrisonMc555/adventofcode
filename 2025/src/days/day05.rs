@@ -220,6 +220,9 @@ mod test {
 
     #[test]
     fn test_real_part2() {
-        assert_eq!("342433357244012", Day05.part2(Example::Real, Debug::NotDebug));
+        assert_eq!(
+            "342433357244012",
+            Day05.part2(Example::Real, Debug::NotDebug)
+        );
     }
 }

@@ -139,7 +139,7 @@ impl State {
             Direction::Right => new_position < old_position,
         };
         let mut num_times_at_zero = complete_rotations;
-        if remainder_rolled_over || new_position == 0{
+        if remainder_rolled_over || new_position == 0 {
             num_times_at_zero += 1;
         }
         num_times_at_zero

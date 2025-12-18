@@ -145,11 +145,17 @@ mod test {
         assert_eq!(811111111119, highest_joltage("811111111111119"));
         assert_eq!(434234234278, highest_joltage("234234234234278"));
         assert_eq!(888911112111, highest_joltage("818181911112111"));
-        assert_eq!("3121910778619", Day03.part2(Example::Example, Debug::NotDebug));
+        assert_eq!(
+            "3121910778619",
+            Day03.part2(Example::Example, Debug::NotDebug)
+        );
     }
 
     #[test]
     fn test_real_part2() {
-        assert_eq!("172162399742349", Day03.part2(Example::Real, Debug::NotDebug));
+        assert_eq!(
+            "172162399742349",
+            Day03.part2(Example::Real, Debug::NotDebug)
+        );
     }
 }
