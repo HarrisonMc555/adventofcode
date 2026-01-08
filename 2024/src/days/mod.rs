@@ -3,8 +3,10 @@
 use std::fs;
 
 pub use day01::Day01;
+pub use day02::Day02;
 
 pub mod day01;
+pub mod day02;
 
 type IResult<'a, T> = nom::IResult<&'a str, T, nom::error::Error<&'a str>>;
 
